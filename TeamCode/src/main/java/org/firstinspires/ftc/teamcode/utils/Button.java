@@ -18,7 +18,7 @@ public class Button{
         return !currentState && prevState;
     }
 
-    public boolean isActuated(){
+    public boolean isActivated(){
         return buttonState.get();
     }
 
