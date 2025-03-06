@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode.utils;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class MotorMechanism extends Mechanism{
     private final DcMotorEx motor;
