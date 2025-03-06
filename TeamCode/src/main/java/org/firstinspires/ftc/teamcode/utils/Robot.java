@@ -11,5 +11,7 @@ public class Robot{
   //Mechanisms, IMU, etc.
   public static boolean initialized = false;
 
-  public static void initialize(){}
+  public static void initialize(){
+    initialized = true;
+  }
 }
