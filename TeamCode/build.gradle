@@ -20,7 +20,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath "dev.frozenmilk:Load:0.1.0"
+        classpath "dev.frozenmilk:Load:0.2.1"
     }
 }
 
@@ -56,7 +56,7 @@ dependencies {
     implementation("com.acmerobotics.roadrunner:core:1.0.1"){
         exclude group: "com.acmerobotics.dashboard"
     }
-    implementation("dev.frozenmilk.dairy:Core:2.2.0")
-    implementation("com.acmerobotics.slothboard:dashboard:0.2.0+0.4.16")
+    implementation("dev.frozenmilk.dairy:Core:2.2.1")
+    implementation("com.acmerobotics.slothboard:dashboard:0.2.1+0.4.16")
     implementation("dev.frozenmilk.dairy:Pasteurized:1.0.0")
 }
