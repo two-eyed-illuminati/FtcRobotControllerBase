@@ -29,7 +29,7 @@ public class ServoMechanism extends Mechanism{
                           double minServoPos, double maxServoPos,
                           double maxVel
     ){
-        super(minPos, maxPos, maxVel/360);
+        super(minPos, maxPos, maxVel*360);
         this.minServoPos = minServoPos;
         this.maxServoPos = maxServoPos;
         this.prevPos = servo.getPosition();
@@ -39,9 +39,9 @@ public class ServoMechanism extends Mechanism{
     @Override
     //TODO implement maxVel
     public void setPos(double angle, double maxVel){
-        prevPos = toDegrees(getPos());
+        prevPos = getPos();
         time.reset();
-        servo.setPosition(Clamp.clamp(toServoPos(angle), minServoPos, maxServoPos));
+        servo.setPosition(toServoPos(Clamp.clamp(angle, minPos, maxPos)));
     }
 
     @Override
