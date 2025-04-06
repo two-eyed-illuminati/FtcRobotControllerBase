@@ -15,6 +15,8 @@ public class MotorMechanism extends Mechanism{
     }
 
     /**
+     * Make sure position units and encoder units are positively correlated.
+     * minPos must be less than maxPos
      * @param motor the motor to be controlled (make sure desired settings are applied e.g. RUN_TO_POSITION, zero power behavior, etc.)
      * @param minPos the minimum position in whatever units
      * @param maxPos the maximum position in units

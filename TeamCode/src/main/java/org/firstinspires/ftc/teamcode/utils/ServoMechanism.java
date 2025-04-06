@@ -17,6 +17,8 @@ public class ServoMechanism extends Mechanism{
     }
 
     /**
+    * Position units and encoder units do not have to be positively correlated,
+    * minPos must be less than maxPos
     * @param servo the servo to be controlled
     * @param minPos the minimum position in degrees
     * @param maxPos the maximum position in degrees
