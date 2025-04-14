@@ -59,4 +59,5 @@ dependencies {
     implementation("dev.frozenmilk.dairy:Core:2.2.1")
     implementation("com.acmerobotics.slothboard:dashboard:0.2.1+0.4.16")
     implementation("dev.frozenmilk.dairy:Pasteurized:1.0.0")
+    implementation("org.nanohttpd:nanohttpd-websocket:2.3.1")
 }
