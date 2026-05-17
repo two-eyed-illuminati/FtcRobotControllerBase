@@ -4,6 +4,7 @@ public abstract class Mechanism {
     public double minPos; //Min position in position units
     public double maxPos; //Max position in position units
     public double maxVel; //Max velocity in position units per second
+    public double targetVel = 0;
 
     public Mechanism(double minPos, double maxPos, double maxVel){
         this.minPos = minPos;
@@ -16,4 +17,5 @@ public abstract class Mechanism {
         setPos(pos, maxVel);
     }
     public abstract double getPos();
+    public abstract double getVel();
 }

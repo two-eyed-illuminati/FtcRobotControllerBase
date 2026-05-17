@@ -7,9 +7,10 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 public class UninitializeRobot extends OpMode {
     @Override
     public void init() {
+        Robot.initializeOpMode(hardwareMap, telemetry);
         Robot.initialized = false;
-        telemetry.addLine("Robot successfully uninitialized");
-        telemetry.update();
+        Robot.telemetry.addLine("Robot successfully uninitialized");
+        Robot.telemetry.update();
     }
 
     @Override
