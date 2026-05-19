@@ -18,7 +18,7 @@ public class MechanismAction implements Action {
     private double margin;
 
     public MechanismAction(Mechanism mechanism, double targetPos, double maxVel, Mode mode, double margin){
-        this.mode = Mode.GO_TO;
+        this.mode = mode;
         this.mechanism = mechanism;
         this.targetPos = targetPos;
         this.maxVel = maxVel;

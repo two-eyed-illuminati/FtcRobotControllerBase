@@ -4,11 +4,11 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class ServoMechanism extends Mechanism{
-    private final Servo servo;
-    private final double minServoPos;
-    private final double maxServoPos;
-    private double prevPos;
-    private final ElapsedTime time = new ElapsedTime();
+    public final Servo servo;
+    public final double minServoPos;
+    public final double maxServoPos;
+    public double prevPos;
+    public final ElapsedTime time = new ElapsedTime();
     public double toServoPos(double angle){
         return ((maxServoPos - minServoPos)/(maxPos - minPos))*(angle - minPos)+minServoPos;
     }
@@ -42,6 +42,7 @@ public class ServoMechanism extends Mechanism{
         prevPos = getPos();
         time.reset();
         servo.setPosition(toServoPos(Clamp.clamp(angle, minPos, maxPos)));
+        targetVel = maxVel;
     }
 
     @Override
@@ -49,5 +50,10 @@ public class ServoMechanism extends Mechanism{
         return prevPos > toDegrees(servo.getPosition()) ?
                 Math.max(prevPos - time.seconds() * maxVel, toDegrees(servo.getPosition())) :
                 Math.min(prevPos + time.seconds() * maxVel, toDegrees(servo.getPosition()));
+    }
+
+    @Override
+    public double getVel(){
+        return 0; //Not implemented
     }
 }

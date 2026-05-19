@@ -3,9 +3,6 @@ package org.firstinspires.ftc.teamcode.utils;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
-import com.acmerobotics.roadrunner.Pose2d;
-import com.acmerobotics.roadrunner.RaceAction;
-import com.acmerobotics.roadrunner.SequentialAction;
 import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -21,15 +18,36 @@ public class Robot{
   //Mechanisms, IMU, etc.
   public static Follower follower;
   public static MultipleTelemetry telemetry;
+  //Stored Values
+  public enum Alliance{
+    BLUE, RED
+  }
+  public static Alliance alliance = Alliance.BLUE; //0 = blue, 1 = red
   public static boolean initialized = false;
 
   public static void initialize(HardwareMap hardwareMap, Telemetry dsTelemetry){
     follower = Constants.createFollower(hardwareMap);
-    telemetry = new MultipleTelemetry(
+    initializeOpMode(hardwareMap, dsTelemetry);
+
+    if(!initialized) {
+      telemetry.addLine("Robot successfully initialized");
+    }
+    else{
+      telemetry.addLine("Robot using previous initialization state");
+      telemetry.addLine("If you would like to uninitialize, run the \"Uninitialize Robot\" OpMode");
+    }
+
+    initialized = true;
+    telemetry.update();
+  }
+
+  public static void initializeOpMode(HardwareMap hardwareMap, Telemetry dsTelemetry){
+    telemetry = new MultipleTelemetry( //apparently needs to reinit each time opmode inits
             dsTelemetry, // Driver Station telemetry
             FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
     );
-
-    initialized = true;
+    if(initialized) {
+      //Do things like setting motor zero power behavior, direction, etc.
+    }
   }
 }
