@@ -1,9 +1,8 @@
-package org.firstinspires.ftc.teamcode.utils;
+package org.firstinspires.ftc.teamcode.utils.mechanism;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.Servo;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.utils.Clamp;
 
 public class MotorMechanism extends Mechanism{
     public final DcMotorEx motor;
@@ -38,7 +37,7 @@ public class MotorMechanism extends Mechanism{
     @Override
     public void setPos(double pos, double maxVel){
         motor.setVelocity(Math.abs(((maxEncoderPos - minEncoderPos)/(maxPos - minPos))*maxVel));
-        motor.setTargetPosition((int)Clamp.clamp(toEncoderPos(pos), minEncoderPos, maxEncoderPos));
+        motor.setTargetPosition((int) Clamp.clamp(toEncoderPos(pos), minEncoderPos, maxEncoderPos));
         targetPos = Clamp.clamp(pos, minPos, maxPos);
         targetVel = maxVel;
     }

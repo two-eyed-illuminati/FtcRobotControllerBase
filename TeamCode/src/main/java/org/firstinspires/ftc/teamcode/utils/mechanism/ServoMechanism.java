@@ -1,7 +1,9 @@
-package org.firstinspires.ftc.teamcode.utils;
+package org.firstinspires.ftc.teamcode.utils.mechanism;
 
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.teamcode.utils.Clamp;
 
 public class ServoMechanism extends Mechanism{
     public final Servo servo;

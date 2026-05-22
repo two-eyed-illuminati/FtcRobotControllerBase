@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.utils;
+package org.firstinspires.ftc.teamcode.utils.mechanism;
 
 public abstract class Mechanism {
     public double minPos; //Min position in position units
