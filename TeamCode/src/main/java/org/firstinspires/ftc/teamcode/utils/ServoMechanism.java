@@ -42,6 +42,7 @@ public class ServoMechanism extends Mechanism{
         prevPos = getPos();
         time.reset();
         servo.setPosition(toServoPos(Clamp.clamp(angle, minPos, maxPos)));
+        targetPos = Clamp.clamp(angle, minPos, maxPos);
         targetVel = maxVel;
     }
 

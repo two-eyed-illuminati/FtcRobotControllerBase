@@ -39,6 +39,7 @@ public class MotorMechanism extends Mechanism{
     public void setPos(double pos, double maxVel){
         motor.setVelocity(Math.abs(((maxEncoderPos - minEncoderPos)/(maxPos - minPos))*maxVel));
         motor.setTargetPosition((int)Clamp.clamp(toEncoderPos(pos), minEncoderPos, maxEncoderPos));
+        targetPos = Clamp.clamp(pos, minPos, maxPos);
         targetVel = maxVel;
     }
 
