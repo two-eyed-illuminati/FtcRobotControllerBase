@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.utils.mechanism;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 
 import org.firstinspires.ftc.teamcode.utils.Clamp;
+import org.firstinspires.ftc.teamcode.utils.Controller;
 
 public class MotorMechanism extends Mechanism{
     public final DcMotorEx motor;
@@ -22,13 +23,15 @@ public class MotorMechanism extends Mechanism{
      * @param minEncoderPos the minimum position in encoder pulses
      * @param maxEncoderPos the maximum position in encoder pulses
      * @param maxVel the maximum velocity in degrees per second
+     * @param controller the controller to be used (NOTE: If using a custom controller, the setPos method must be called every loop)
      */
     public MotorMechanism(DcMotorEx motor,
                           double minPos, double maxPos,
                           double minEncoderPos, double maxEncoderPos,
-                          double maxVel
+                          double maxVel,
+                          Controller controller
     ){
-        super(minPos, maxPos, maxVel);
+        super(minPos, maxPos, maxVel, controller);
         this.motor = motor;
         this.minEncoderPos = minEncoderPos;
         this.maxEncoderPos = maxEncoderPos;
@@ -37,7 +40,13 @@ public class MotorMechanism extends Mechanism{
     @Override
     public void setPos(double pos, double maxVel){
         motor.setVelocity(Math.abs(((maxEncoderPos - minEncoderPos)/(maxPos - minPos))*maxVel));
-        motor.setTargetPosition((int) Clamp.clamp(toEncoderPos(pos), minEncoderPos, maxEncoderPos));
+        double targetEncoderPos = Clamp.clamp(toEncoderPos(pos), minEncoderPos, maxEncoderPos);
+        if(!usingCustomController) {
+            motor.setTargetPosition((int) targetEncoderPos);
+        }
+        else{
+            motor.setPower(controller.getPower(motor.getCurrentPosition(), targetEncoderPos));
+        }
         targetPos = Clamp.clamp(pos, minPos, maxPos);
         targetVel = maxVel;
     }
