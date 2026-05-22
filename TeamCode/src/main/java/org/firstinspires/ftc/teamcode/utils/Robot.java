@@ -13,6 +13,7 @@ import com.acmerobotics.roadrunner.Rotation2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -23,6 +24,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.utils.rr.MecanumDrive;
+
+import java.util.List;
 
 //Allow configuration variables to be tuned without pushing code
 //with FTC Dashboard (https://acmerobotics.github.io/ftc-dashboard/features#configuration-variables)
@@ -71,6 +74,13 @@ public class Robot{
             dsTelemetry, // Driver Station telemetry
             FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
     );
+
+    List<LynxModule> allHubs;
+    allHubs = hardwareMap.getAll(LynxModule.class);
+    for (LynxModule hub : allHubs) {
+      hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+    }
+
     if(initialized) {
       drive.leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
       drive.leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);

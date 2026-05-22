@@ -23,24 +23,15 @@ public class MainTeleOp extends OpMode {
     public double currentMaxOuttakeVel = 0.0;
     public ElapsedTime timeSinceWantedLedStateChange;
     public int wantedLedState = 0;
-    List<LynxModule> allHubs;
 
     @Override
     public void init(){
         Robot.initialize(hardwareMap, telemetry);
         timeSinceWantedLedStateChange = new ElapsedTime();
-        allHubs = hardwareMap.getAll(LynxModule.class);
-        for (LynxModule hub : allHubs) {
-            hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
-        }
     }
 
     @Override
     public void loop(){
-        for (LynxModule hub : allHubs) {
-            hub.clearBulkCache();
-        }
-
         PoseVelocity2d currDriveVel = Robot.drive.updatePoseEstimate();
         currDriveVel = Rotation2d.fromDouble(Robot.drive.localizer.getPose().heading.log()).times(currDriveVel);
         currDriveVel = new PoseVelocity2d(
