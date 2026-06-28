@@ -1,7 +1,10 @@
-package org.firstinspires.ftc.teamcode.utils;
+package org.firstinspires.ftc.teamcode.utils.mechanism;
 
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.teamcode.utils.Clamp;
+import org.firstinspires.ftc.teamcode.utils.Controller;
 
 public class ServoMechanism extends Mechanism{
     public final Servo servo;
@@ -23,13 +26,15 @@ public class ServoMechanism extends Mechanism{
     * @param minServoPos the minimum position in servo position units
     * @param maxServoPos the maximum position in servo position units
     * @param maxVel the maximum velocity in revolutions per second
-     */
+    * @param controller the controller to be used (NOTE: If using a custom controller, the setPos method must be called every loop)
+    */
     public ServoMechanism(Servo servo,
                           double minPos, double maxPos,
                           double minServoPos, double maxServoPos,
-                          double maxVel
+                          double maxVel,
+                          Controller controller
     ){
-        super(minPos, maxPos, maxVel*360);
+        super(minPos, maxPos, maxVel*360, controller);
         this.minServoPos = minServoPos;
         this.maxServoPos = maxServoPos;
         this.prevPos = servo.getPosition();
@@ -37,11 +42,12 @@ public class ServoMechanism extends Mechanism{
     }
 
     @Override
-    //TODO implement maxVel
+    //TODO implement maxVel, controller
     public void setPos(double angle, double maxVel){
         prevPos = getPos();
         time.reset();
         servo.setPosition(toServoPos(Clamp.clamp(angle, minPos, maxPos)));
+        targetPos = Clamp.clamp(angle, minPos, maxPos);
         targetVel = maxVel;
     }
 

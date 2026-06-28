@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.utils;
 
+import androidx.annotation.NonNull;
+
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
@@ -8,6 +10,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
+
+import java.util.List;
 
 //Allow configuration variables to be tuned without pushing code
 //with FTC Dashboard (https://acmerobotics.github.io/ftc-dashboard/features#configuration-variables)
@@ -46,6 +50,13 @@ public class Robot{
             dsTelemetry, // Driver Station telemetry
             FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
     );
+
+    List<LynxModule> allHubs;
+    allHubs = hardwareMap.getAll(LynxModule.class);
+    for (LynxModule hub : allHubs) {
+      hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+    }
+
     if(initialized) {
       //Do things like setting motor zero power behavior, direction, etc.
     }
