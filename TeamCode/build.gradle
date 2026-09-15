@@ -65,6 +65,6 @@ dependencies {
     }
     implementation("dev.frozenmilk.sinister:Sloth:0.3.1")
     implementation("com.acmerobotics.slothboard:dashboard:0.3.1+0.6.0")
-    implementation("com.pedropathing:ftc:2.1.1")
-    implementation("com.pedropathing:telemetry:1.0.0")
+    implementation("com.pedropathing:revhub:3.0.0")
+    implementation("com.pedropathing:tuning:1.0.0")
 }
