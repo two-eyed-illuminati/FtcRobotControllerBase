@@ -57,6 +57,7 @@ public final class ExampleAutoBuilder {
 
     private final Follower follower;
     private final List<Command> commands = new ArrayList<>();
+    private final PpExporter pp = new PpExporter();
 
     private Pose currentPose;
 
@@ -70,6 +71,7 @@ public final class ExampleAutoBuilder {
     public ExampleAutoBuilder startAt(Pose startPose) {
         currentPose = startPose;
         follower.setPose(startPose);
+        pp.startAt(startPose);
         return this;
     }
 
@@ -106,10 +108,8 @@ public final class ExampleAutoBuilder {
         Path approachPath = curve(start, control, approach).linear(start, approach);
         Path alignPath = line(approach, target).linear(approach, target);
 
-        commands.add(sequential(
-                follow(follower, approachPath),
-                follow(follower, alignPath)));
-        currentPose = target;
+        followPath(approachPath);
+        followPath(alignPath);
         return this;
     }
 
@@ -126,8 +126,7 @@ public final class ExampleAutoBuilder {
     public ExampleAutoBuilder parkAt(Pose parkPose) {
         Pose start = currentPose;
         Path park = line(start, parkPose).linear(start, parkPose);
-        commands.add(follow(follower, park));
-        currentPose = parkPose;
+        followPath(park);
         return this;
     }
 
@@ -144,6 +143,16 @@ public final class ExampleAutoBuilder {
      */
     public Command build() {
         return sequential(commands.toArray(new Command[0]));
+    }
+
+    public String buildPp() {
+        return pp.build();
+    }
+
+    private void followPath(Path path) {
+        commands.add(follow(follower, path));
+        pp.add(path);
+        currentPose = path.endPose();
     }
 
     private static Pose degreesPose(double x, double y, double headingDegrees) {
