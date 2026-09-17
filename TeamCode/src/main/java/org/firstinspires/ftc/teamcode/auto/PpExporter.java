@@ -54,13 +54,7 @@ public final class PpExporter {
                     .append(i + 1)
                     .append("\"}");
         }
-        json.append("\n  ],\n");
-        json.append("  \"activePaths\": [");
-        for (int i = 0; i < paths.size(); i++) {
-            if (i > 0) json.append(',');
-            json.append("\"path-").append(i + 1).append("\"");
-        }
-        json.append("]\n");
+        json.append("\n  ]\n");
         json.append('}');
         return json.toString();
     }

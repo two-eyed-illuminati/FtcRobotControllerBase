@@ -61,6 +61,10 @@ public final class ExampleAutoBuilder {
 
     private Pose currentPose;
 
+    public ExampleAutoBuilder() {
+        follower = null;
+    }
+
     public ExampleAutoBuilder(Follower follower) {
         this.follower = follower;
     }
@@ -70,8 +74,8 @@ public final class ExampleAutoBuilder {
      */
     public ExampleAutoBuilder startAt(Pose startPose) {
         currentPose = startPose;
-        follower.setPose(startPose);
         pp.startAt(startPose);
+        if (follower != null) follower.setPose(startPose);
         return this;
     }
 
@@ -150,7 +154,7 @@ public final class ExampleAutoBuilder {
     }
 
     private void followPath(Path path) {
-        commands.add(follow(follower, path));
+        if (follower != null) commands.add(follow(follower, path));
         pp.add(path);
         currentPose = path.endPose();
     }

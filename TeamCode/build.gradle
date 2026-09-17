@@ -69,3 +69,28 @@ dependencies {
     implementation("com.pedropathing:tuning:1.0.0")
     implementation("com.pedropathing.ivy:pedro:1.1.1")
 }
+
+afterEvaluate {
+    def debugRuntimeJars = configurations.debugRuntimeClasspath.incoming.artifactView {
+        attributes {
+            attribute(
+                    Attribute.of("artifactType", String),
+                    "android-classes-jar"
+            )
+        }
+    }.files
+
+    tasks.register("exportExampleAuto", JavaExec) {
+        dependsOn("compileDebugJavaWithJavac")
+        group = "application"
+        description = "Exports the example autonomous to a Pedro Visualizer .pp file"
+        mainClass = "org.firstinspires.ftc.teamcode.auto.ExportExampleAuto"
+        classpath = files(
+                tasks.named("compileDebugJavaWithJavac").get().destinationDirectory
+        ) + debugRuntimeJars
+        workingDir = rootProject.projectDir
+        if (project.hasProperty("ppOutput")) {
+            args(project.property("ppOutput"))
+        }
+    }
+}
