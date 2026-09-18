@@ -31,11 +31,16 @@ public abstract class AutoOpMode extends OpMode {
         Robot.alliance = alliance;
         Robot.initialize(hardwareMap, telemetry);
         follower = Robot.follower;
-        routine = routineFactory.apply(follower).build();
+    }
+
+    @Override
+    public final void init_loop() {
+        Robot.requestAlliance(gamepad1);
     }
 
     @Override
     public final void start() {
+        routine = routineFactory.apply(follower).build();
         Scheduler.schedule(routine);
     }
 

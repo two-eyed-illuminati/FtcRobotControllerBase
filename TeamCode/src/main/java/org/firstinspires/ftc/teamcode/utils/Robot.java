@@ -1,12 +1,11 @@
 package org.firstinspires.ftc.teamcode.utils;
 
-import androidx.annotation.NonNull;
-
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.pedropathing.follower.Follower;
 import com.qualcomm.hardware.lynx.LynxModule;
+import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
@@ -29,6 +28,20 @@ public class Robot{
   }
   public static Alliance alliance = Alliance.BLUE; //0 = blue, 1 = red
   public static boolean initialized = false;
+
+  public static void requestAlliance(Gamepad gamepad){
+    telemetry.addLine("Press X for BLUE alliance, B for RED alliance");
+
+    if(gamepad.x){
+      alliance = Alliance.BLUE;
+    }
+    else if(gamepad.b){
+      alliance = Alliance.RED;
+    }
+
+    telemetry.addData("Current Alliance", alliance);
+    telemetry.update();
+  }
 
   public static void initialize(HardwareMap hardwareMap, Telemetry dsTelemetry){
     follower = Constants.create(hardwareMap);
