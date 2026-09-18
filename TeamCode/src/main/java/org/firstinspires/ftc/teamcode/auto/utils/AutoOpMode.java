@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto;
+package org.firstinspires.ftc.teamcode.auto.utils;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.ivy.Command;
@@ -12,14 +12,14 @@ import java.util.function.Function;
 
 public abstract class AutoOpMode extends OpMode {
     private final Robot.Alliance alliance;
-    private final Function<Follower, ExampleAutoBuilder> routineFactory;
+    private final Function<Follower, AutoBuilder> routineFactory;
 
     private Follower follower;
     private Command routine;
 
     protected AutoOpMode(
             Robot.Alliance alliance,
-            Function<Follower, ExampleAutoBuilder> routineFactory
+            Function<Follower, AutoBuilder> routineFactory
     ) {
         this.alliance = alliance;
         this.routineFactory = routineFactory;

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto;
+package org.firstinspires.ftc.teamcode.auto.utils;
 
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Vector2D;
@@ -11,12 +11,6 @@ import com.pedropathing.paths.curves.bezier.BezierCurve;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Converts the geometry of Pedro paths into a Pedro Visualizer project.
- *
- * <p>Lines and Bézier curves are converted exactly. Other curve implementations are rejected until
- * an exact conversion is added.
- */
 public final class PpExporter {
     private static final int HEADING_SAMPLES = 8;
     private static final double ANGLE_TOLERANCE = Math.toRadians(0.01);
