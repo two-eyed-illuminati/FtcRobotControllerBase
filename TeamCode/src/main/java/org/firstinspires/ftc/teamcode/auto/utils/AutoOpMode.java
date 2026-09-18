@@ -28,6 +28,7 @@ public abstract class AutoOpMode extends OpMode {
     protected AutoOpMode(
             Function<Follower, AutoBuilder> routineFactory
     ) {
+        this.alliance = Robot.Alliance.BLUE;
         this.routineFactory = routineFactory;
     }
 
