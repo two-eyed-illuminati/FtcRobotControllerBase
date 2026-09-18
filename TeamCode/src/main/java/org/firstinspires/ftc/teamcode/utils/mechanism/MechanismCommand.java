@@ -1,11 +1,15 @@
 package org.firstinspires.ftc.teamcode.utils.mechanism;
 
-import androidx.annotation.NonNull;
+import com.pedropathing.ivy.Command;
+import com.pedropathing.ivy.behaviors.BlockedBehavior;
+import com.pedropathing.ivy.behaviors.ConflictBehavior;
+import com.pedropathing.ivy.behaviors.EndCondition;
+import com.pedropathing.ivy.behaviors.InterruptedBehavior;
 
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
-import com.acmerobotics.roadrunner.Action;
+import java.util.Collections;
+import java.util.Set;
 
-public class MechanismAction implements Action {
+public class MechanismCommand implements Command {
     public enum Mode{
         GO_GREATER,
         GO_TO,
@@ -17,7 +21,7 @@ public class MechanismAction implements Action {
     private double maxVel;
     private double margin;
 
-    public MechanismAction(Mechanism mechanism, double targetPos, double maxVel, Mode mode, double margin){
+    public MechanismCommand(Mechanism mechanism, double targetPos, double maxVel, Mode mode, double margin){
         this.mode = mode;
         this.mechanism = mechanism;
         this.targetPos = targetPos;
@@ -25,7 +29,7 @@ public class MechanismAction implements Action {
         this.margin = margin;
     }
 
-    public MechanismAction(Mechanism mechanism){
+    public MechanismCommand(Mechanism mechanism){
         this.mode = Mode.GO_TO;
         this.mechanism = mechanism;
         this.targetPos = mechanism.getPos();
@@ -33,19 +37,19 @@ public class MechanismAction implements Action {
         this.margin = mechanism.maxVel * 0.05;
     }
 
-    public MechanismAction setMode(Mode mode){
+    public MechanismCommand setMode(Mode mode){
         this.mode = mode;
         return this;
     }
-    public MechanismAction setTargetPos(double targetPos){
+    public MechanismCommand setTargetPos(double targetPos){
         this.targetPos = targetPos;
         return this;
     }
-    public MechanismAction setMaxVel(double maxVel){
+    public MechanismCommand setMaxVel(double maxVel){
         this.maxVel = maxVel;
         return this;
     }
-    public MechanismAction setMargin(double margin){
+    public MechanismCommand setMargin(double margin){
         this.margin = margin;
         return this;
     }
@@ -64,7 +68,41 @@ public class MechanismAction implements Action {
     }
 
     @Override
-    public boolean run(@NonNull TelemetryPacket packet){
+    public Set<Object> requirements() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public int priority() {
+        return 0;
+    }
+
+    @Override
+    public InterruptedBehavior interruptedBehavior() {
+        return InterruptedBehavior.END;
+    }
+
+    @Override
+    public ConflictBehavior conflictBehavior() {
+        return ConflictBehavior.CANCEL;
+    }
+
+    @Override
+    public BlockedBehavior blockedBehavior() {
+        return BlockedBehavior.CANCEL;
+    }
+
+    @Override
+    public void start() {
+    }
+
+    @Override
+    public boolean done() {
+        return !running();
+    }
+
+    @Override
+    public void execute(){
         if(mode == Mode.GO_TO){
             mechanism.setPos(targetPos, maxVel);
         }
@@ -74,6 +112,9 @@ public class MechanismAction implements Action {
         if(mode == Mode.GO_LESS){
             mechanism.setPos(mechanism.minPos, maxVel);
         }
-        return running();
+    }
+
+    @Override
+    public void end(EndCondition condition) {
     }
 }
