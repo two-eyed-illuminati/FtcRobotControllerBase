@@ -14,7 +14,7 @@ import org.firstinspires.ftc.teamcode.utils.Robot;
 @Autonomous(name = "Example Auto", group = "Auto")
 public final class ExampleAuto extends AutoOpMode {
     public ExampleAuto() {
-        super(Robot.Alliance.BLUE, ExampleAuto::createRoutine);
+        super(ExampleAuto::createRoutine);
     }
 
     public static AutoBuilder createRoutine(Follower follower) {

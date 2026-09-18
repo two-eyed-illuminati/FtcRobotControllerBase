@@ -25,6 +25,12 @@ public abstract class AutoOpMode extends OpMode {
         this.routineFactory = routineFactory;
     }
 
+    protected AutoOpMode(
+            Function<Follower, AutoBuilder> routineFactory
+    ) {
+        this.routineFactory = routineFactory;
+    }
+
     @Override
     public final void init() {
         Scheduler.reset();
