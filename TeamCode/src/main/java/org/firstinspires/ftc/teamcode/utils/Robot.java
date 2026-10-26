@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode.utils;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.config.Config;
-import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.telemetry.JoinedTelemetry;
+import com.bylazar.telemetry.PanelsTelemetry;
 import com.pedropathing.follower.Follower;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.Gamepad;
@@ -13,15 +13,14 @@ import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
 
 import java.util.List;
 
-//Allow configuration variables to be tuned without pushing code
-//with FTC Dashboard (https://acmerobotics.github.io/ftc-dashboard/features#configuration-variables)
-@Config
+// Allow configuration variables to be tuned without pushing code in Panels.
+@Configurable
 public class Robot{
   //Constants
 
   //Mechanisms, IMU, etc.
   public static Follower follower;
-  public static MultipleTelemetry telemetry;
+  public static Telemetry telemetry;
   //Stored Values
   public enum Alliance{
     BLUE, RED
@@ -60,9 +59,9 @@ public class Robot{
   }
 
   public static void initializeOpMode(HardwareMap hardwareMap, Telemetry dsTelemetry){
-    telemetry = new MultipleTelemetry( //apparently needs to reinit each time opmode inits
-            dsTelemetry, // Driver Station telemetry
-            FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
+    telemetry = new JoinedTelemetry( // Needs to be recreated for each OpMode.
+            PanelsTelemetry.INSTANCE.getFtcTelemetry(), // Panels telemetry
+            dsTelemetry // Driver Station telemetry
     );
 
     List<LynxModule> allHubs;
