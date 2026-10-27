@@ -12,40 +12,48 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class AutoBuilder {
-    private final Follower follower;
-    private final List<Command> commands = new ArrayList<>();
-    private final PpExporter pp = new PpExporter();
+  private final Follower follower;
+  private final List<Command> commands = new ArrayList<>();
+  private final PpExporter pp = new PpExporter();
+  private Pose currentPose;
 
-    public AutoBuilder() {
-        follower = null;
-    }
+  public AutoBuilder() {
+    this(null);
+  }
 
-    public AutoBuilder(Follower follower) {
-        this.follower = follower;
-    }
+  public AutoBuilder(Follower follower) {
+    this.follower = follower;
+  }
 
-    public AutoBuilder startAt(Pose pose) {
-        pp.startAt(pose);
-        if (follower != null) follower.setPose(pose);
-        return this;
-    }
+  public AutoBuilder startAt(Pose pose) {
+    currentPose = pose;
+    pp.startAt(pose);
+    if (follower != null) follower.setPose(pose);
+    return this;
+  }
 
-    public AutoBuilder followPath(Path path) {
-        if (follower != null) commands.add(follow(follower, path));
-        pp.add(path);
-        return this;
-    }
+  public AutoBuilder followPath(Path path) {
+    commands.add(drive(path));
+    return this;
+  }
 
-    public AutoBuilder then(Command command) {
-        commands.add(command);
-        return this;
-    }
+  public AutoBuilder then(Command command) {
+    commands.add(command);
+    return this;
+  }
 
-    public Command build() {
-        return sequential(commands.toArray(new Command[0]));
-    }
+  public Command build() {
+    return sequential(commands.toArray(new Command[0]));
+  }
 
-    public String buildPp() {
-        return pp.build();
-    }
+  public String buildPp() {
+    return pp.build();
+  }
+
+  private Command drive(Path path) {
+    Pose end = path.endPose();
+    pp.add(path);
+    currentPose = end;
+    return follower == null ? Command.NOOP : follow(follower, path);
+  }
 }
