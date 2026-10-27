@@ -21,7 +21,7 @@ import java.util.List;
 @Config
 public class Robot{
   //Constants
-  public static Pose START_POSE = new Pose(72, 72, 0); //blue frame, heading in radians
+  public static Pose START_POSE_CENTER = new Pose(72, 72, 0);
 
   //Mechanisms, IMU, etc.
   public static Follower follower;
