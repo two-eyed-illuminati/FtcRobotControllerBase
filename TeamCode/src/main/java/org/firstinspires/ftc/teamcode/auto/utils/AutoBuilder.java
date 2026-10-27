@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.auto.utils;
 
+import static com.pedropathing.api.Paths.curve;
+import static com.pedropathing.api.Paths.line;
 import static com.pedropathing.ivy.groups.Groups.sequential;
 import static com.pedropathing.ivy.pedro.PedroCommands.follow;
 
@@ -8,14 +10,16 @@ import com.pedropathing.ivy.Command;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
 
+import org.firstinspires.ftc.teamcode.utils.Robot;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public final class AutoBuilder {
-  private final Follower follower;
-  private final List<Command> commands = new ArrayList<>();
-  private final PpExporter pp = new PpExporter();
-  private Pose currentPose;
+public class AutoBuilder {
+  public Follower follower;
+  public List<Command> commands = new ArrayList<>();
+  public PpExporter pp = new PpExporter();
+  public Pose currentPose;
 
   public AutoBuilder() {
     this(null);
@@ -25,10 +29,10 @@ public final class AutoBuilder {
     this.follower = follower;
   }
 
-  public AutoBuilder startAt(Pose pose) {
-    currentPose = pose;
-    pp.startAt(pose);
-    if (follower != null) follower.setPose(pose);
+  public AutoBuilder startAt(Pose bluePose) {
+    currentPose = Robot.toField(bluePose);
+    pp.startAt(currentPose);
+    if (follower != null) follower.setPose(currentPose);
     return this;
   }
 
@@ -50,10 +54,38 @@ public final class AutoBuilder {
     return pp.build();
   }
 
-  private Command drive(Path path) {
+  public Command drive(Path path) {
     Pose end = path.endPose();
     pp.add(path);
     currentPose = end;
     return follower == null ? Command.NOOP : follow(follower, path);
+  }
+
+  public enum Shape { LINE, CURVE }
+
+  public static Pose CENTER = new Pose(72.0, 72.0, 0);
+
+  private static double angleDistance(double a, double b) {
+    return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  }
+
+  public static class GoToCenter {
+    public Pose endPose = CENTER;
+  }
+
+  public AutoBuilder goToCenter() {
+    GoToCenter config = new GoToCenter();
+    Pose facing180 = CENTER.withHeading(Math.PI);
+    if (angleDistance(currentPose.heading(), Robot.toField(facing180).heading())
+        < angleDistance(currentPose.heading(), Robot.toField(CENTER).heading())) {
+      config.endPose = facing180;
+    }
+    return goToCenter(config);
+  }
+
+  public AutoBuilder goToCenter(GoToCenter config) {
+    Pose end = Robot.toField(config.endPose);
+    commands.add(drive(line(currentPose, end).linear(currentPose, end)));
+    return this;
   }
 }

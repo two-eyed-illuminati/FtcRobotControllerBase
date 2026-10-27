@@ -8,6 +8,9 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import com.pedropathing.math.Pose;
+import com.pedropathing.api.PoseFactory;
+
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
 
@@ -18,6 +21,7 @@ import java.util.List;
 @Config
 public class Robot{
   //Constants
+  public static Pose START_POSE = new Pose(72, 72, 0); //blue frame, heading in radians
 
   //Mechanisms, IMU, etc.
   public static Follower follower;
@@ -28,6 +32,14 @@ public class Robot{
   }
   public static Alliance alliance = Alliance.BLUE; //0 = blue, 1 = red
   public static boolean initialized = false;
+
+  public static Pose toField(Pose bluePose){
+    PoseFactory factory = PoseFactory.radians();
+    if(alliance == Alliance.RED){
+      factory = factory.mirrorX(72);
+    }
+    return factory.of(bluePose.x(), bluePose.y(), bluePose.heading());
+  }
 
   public static void requestAlliance(Gamepad gamepad){
     telemetry.addLine("Press X for BLUE alliance, B for RED alliance");
