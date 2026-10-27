@@ -26,6 +26,7 @@ public class Robot{
   //Mechanisms, IMU, etc.
   public static Follower follower;
   public static MultipleTelemetry telemetry;
+  
   //Stored Values
   public enum Alliance{
     BLUE, RED
