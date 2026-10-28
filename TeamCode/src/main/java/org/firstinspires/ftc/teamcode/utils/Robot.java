@@ -32,6 +32,7 @@ public class Robot{
     BLUE, RED
   }
   public static Alliance alliance = Alliance.BLUE; //0 = blue, 1 = red
+  public static Pose pose = new Pose(0, 0, 0);
   public static boolean initialized = false;
 
   public static Pose toField(Pose bluePose){
@@ -86,6 +87,7 @@ public class Robot{
 
     if(initialized) {
       //Do things like setting motor zero power behavior, direction, etc.
+      follower.setPose(pose);
     }
   }
 }
