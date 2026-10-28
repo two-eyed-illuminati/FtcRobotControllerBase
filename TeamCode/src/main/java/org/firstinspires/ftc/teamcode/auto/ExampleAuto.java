@@ -18,13 +18,10 @@ public final class ExampleAuto extends AutoOpMode {
     }
 
     public static AutoBuilder createRoutine(Follower follower) {
-        Pose start = pose(56, 8, 90);
-        Pose approach = pose(56, 16, 0);
-        Pose fieldStart = Robot.toField(start);
-        Pose fieldApproach = Robot.toField(approach);
+        Pose start = Robot.START_POSE_CORNER;
 
         return new AutoBuilder(follower)
                 .startAt(start)
-                .followPath(line(fieldStart, fieldApproach).linear(fieldStart, fieldApproach));
+                .goToCenter();
     }
 }

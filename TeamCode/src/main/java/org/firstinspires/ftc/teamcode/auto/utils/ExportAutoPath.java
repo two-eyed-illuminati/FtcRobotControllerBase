@@ -13,7 +13,7 @@ public final class ExportAutoPath {
 
     public static void main(String[] args) throws Exception {
         Path output = Paths.get(
-                args.length == 0 ? "TeamCode/build/exports/example-auto.pp" : args[0]);
+                args.length == 0 ? "TeamCode/build/exports/auto-path.pp" : args[0]);
 
         AutoBuilder auto = ExampleAuto.createRoutine(null);
 
