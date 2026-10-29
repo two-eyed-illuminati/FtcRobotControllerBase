@@ -14,6 +14,7 @@ import com.pedropathing.api.PoseFactory;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
 
+import java.util.ArrayList;
 import java.util.List;
 
 //Allow configuration variables to be tuned without pushing code
@@ -26,6 +27,7 @@ public class Robot{
   //Mechanisms, IMU, etc.
   public static Follower follower;
   public static MultipleTelemetry telemetry;
+  private static List<LynxModule> hubs = new ArrayList<>();
   
   //Stored Values
   public enum Alliance{
@@ -73,15 +75,20 @@ public class Robot{
     telemetry.update();
   }
 
+  public static void clearBulkCache(){
+    for (LynxModule hub : hubs) {
+      hub.clearBulkCache();
+    }
+  }
+
   public static void initializeOpMode(HardwareMap hardwareMap, Telemetry dsTelemetry){
     telemetry = new MultipleTelemetry( //apparently needs to reinit each time opmode inits
             dsTelemetry, // Driver Station telemetry
             FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
     );
 
-    List<LynxModule> allHubs;
-    allHubs = hardwareMap.getAll(LynxModule.class);
-    for (LynxModule hub : allHubs) {
+    hubs = hardwareMap.getAll(LynxModule.class);
+    for (LynxModule hub : hubs) {
       hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
     }
 

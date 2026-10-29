@@ -53,6 +53,7 @@ public abstract class AutoOpMode extends OpMode {
 
     @Override
     public final void loop() {
+        Robot.clearBulkCache();
         follower.update();
         Robot.pose = follower.pose();
         Scheduler.execute();
