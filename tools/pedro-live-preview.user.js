@@ -1,19 +1,36 @@
 // ==UserScript==
 // @name         Pedro Pathing live preview
 // @namespace    https://github.com/Pedro-Pathing/Visualizer
-// @version      0.1.0
+// @version      0.3.0
 // @description  Reload a generated .pp file when it changes on disk.
 // @match        https://visualizer.pedropathing.com/*
+// @run-at       document-start
 // @grant        none
 // ==/UserScript==
 
 (() => {
     "use strict";
+    console.log("Pedro live preview 0.3.0 loaded");
 
     const POLL_INTERVAL_MS = 500;
     let fileHandle;
     let lastModified;
     let reloading = false;
+    let openInput;
+
+    // The Visualizer (2.0.0+) builds a throwaway <input type="file"> each time
+    // "Open from computer…" runs. Keep its handler and answer it with the watched
+    // file instead of showing the native dialog.
+    const nativeClick = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function (...args) {
+        if (this.type !== "file" || !this.onchange || !fileHandle) {
+            return nativeClick.apply(this, args);
+        }
+        console.log("Pedro live preview: captured the Visualizer's file input");
+        openInput = this;
+        reloadIfChanged(true);
+    };
+    console.log("Pedro live preview: file input hook installed");
 
     const button = document.createElement("button");
     button.textContent = "Watch .pp";
@@ -52,29 +69,57 @@
                 }],
             });
             lastModified = undefined;
-            await reloadIfChanged();
+            button.textContent = "Attaching…";
+            await openThroughFileMenu();
         } catch (error) {
             if (error.name !== "AbortError") showError(error);
         }
     });
 
-    async function reloadIfChanged() {
-        if (!fileHandle || reloading) return;
+    function findByText(selector, prefix) {
+        return [...document.querySelectorAll(selector)]
+            .find((element) => element.textContent.trim().startsWith(prefix));
+    }
+
+    async function waitFor(find, timeoutMs = 2000) {
+        const deadline = Date.now() + timeoutMs;
+        for (let element = find(); !element; element = find()) {
+            if (Date.now() > deadline) return null;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return find();
+    }
+
+    async function openThroughFileMenu() {
+        const fileMenu = findByText('button[aria-haspopup="menu"]', "File");
+        if (!fileMenu) return showHint("Could not find the File menu");
+
+        fileMenu.click();
+        const item = await waitFor(() => findByText('[role="menuitem"]', "Open from computer"));
+        if (!item) return showHint("Could not find File > Open from computer…");
+
+        item.click();
+    }
+
+    function showHint(reason) {
+        console.log(`Pedro live preview: ${reason}`);
+        button.textContent = "Now: File > Open from computer…";
+        button.title = `${reason}. Run the Visualizer's "Open from computer…" action once to attach the watched file.`;
+    }
+
+    async function reloadIfChanged(force = false) {
+        if (!fileHandle || !openInput || reloading) return;
 
         reloading = true;
         try {
             const file = await fileHandle.getFile();
-            if (file.lastModified === lastModified) return;
-
-            const input = document.querySelector("#file-input");
-            if (!(input instanceof HTMLInputElement)) {
-                throw new Error("Could not find the Visualizer's .pp file input");
-            }
+            if (!force && file.lastModified === lastModified) return;
 
             const transfer = new DataTransfer();
             transfer.items.add(file);
-            input.files = transfer.files;
-            input.dispatchEvent(new Event("change", {bubbles: true}));
+            console.log(`Pedro live preview: loading ${file.name} (${file.size} bytes)`);
+            openInput.files = transfer.files;
+            openInput.dispatchEvent(new Event("change", {bubbles: true}));
 
             lastModified = file.lastModified;
             button.textContent = `Watching ${file.name}`;
@@ -96,6 +141,11 @@
         button.title = String(error);
     }
 
-    document.body.appendChild(button);
+    function attachButton() {
+        if (document.body && !button.isConnected) document.body.appendChild(button);
+    }
+    attachButton();
+    document.addEventListener("DOMContentLoaded", attachButton);
+    new MutationObserver(attachButton).observe(document.documentElement, {childList: true, subtree: true});
     window.setInterval(reloadIfChanged, POLL_INTERVAL_MS);
 })();
