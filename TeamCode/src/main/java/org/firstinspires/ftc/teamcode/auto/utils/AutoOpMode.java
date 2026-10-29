@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode.auto.utils;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.ivy.Command;
 import com.pedropathing.ivy.Scheduler;
-import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.utils.Robot;
@@ -11,31 +10,20 @@ import org.firstinspires.ftc.teamcode.utils.Robot;
 import java.util.function.Function;
 
 public abstract class AutoOpMode extends OpMode {
-    private final Robot.Alliance alliance;
     private final Function<Follower, AutoBuilder> routineFactory;
 
     private Follower follower;
     private Command routine;
 
     protected AutoOpMode(
-            Robot.Alliance alliance,
             Function<Follower, AutoBuilder> routineFactory
     ) {
-        this.alliance = alliance;
-        this.routineFactory = routineFactory;
-    }
-
-    protected AutoOpMode(
-            Function<Follower, AutoBuilder> routineFactory
-    ) {
-        this.alliance = Robot.Alliance.BLUE;
         this.routineFactory = routineFactory;
     }
 
     @Override
     public final void init() {
         Scheduler.reset();
-        Robot.alliance = alliance;
         Robot.initialize(hardwareMap, telemetry);
         follower = Robot.follower;
     }
@@ -62,9 +50,5 @@ public abstract class AutoOpMode extends OpMode {
     @Override
     public final void stop() {
         Scheduler.reset();
-    }
-
-    protected static Pose pose(double x, double y, double headingDegrees) {
-        return new Pose(x, y, Math.toRadians(headingDegrees));
     }
 }
