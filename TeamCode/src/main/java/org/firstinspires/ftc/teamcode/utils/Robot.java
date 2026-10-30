@@ -23,6 +23,7 @@ import java.util.List;
 @Config
 public class Robot{
   //Constants
+  public static double DRIVER_FORWARD_HEADING = Math.PI;
   public static Pose START_POSE_CORNER = new Pose(0, 0, 0);
 
   //Mechanisms, IMU, etc.
