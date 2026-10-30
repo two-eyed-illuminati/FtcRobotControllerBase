@@ -12,7 +12,6 @@ import java.util.function.Function;
 public abstract class AutoOpMode extends OpMode {
     private final Function<Follower, AutoBuilder> routineFactory;
 
-    private Follower follower;
     private Command routine;
 
     protected AutoOpMode(
@@ -23,27 +22,23 @@ public abstract class AutoOpMode extends OpMode {
 
     @Override
     public final void init() {
-        Scheduler.reset();
-        Robot.initialize(hardwareMap, telemetry);
-        follower = Robot.follower;
+        Robot.init(hardwareMap, telemetry);
     }
 
     @Override
     public final void init_loop() {
-        Robot.requestAlliance(gamepad1);
+        Robot.initLoop(gamepad1);
     }
 
     @Override
     public final void start() {
-        routine = routineFactory.apply(follower).build();
+        routine = routineFactory.apply(Robot.follower).build();
         Scheduler.schedule(routine);
     }
 
     @Override
     public final void loop() {
-        Robot.clearBulkCache();
-        follower.update();
-        Robot.pose = follower.pose();
+        Robot.loop();
         Scheduler.execute();
     }
 

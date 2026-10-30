@@ -4,6 +4,7 @@ import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.pedropathing.follower.Follower;
+import com.pedropathing.ivy.Scheduler;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -28,6 +29,8 @@ public class Robot{
   public static Follower follower;
   public static MultipleTelemetry telemetry;
   private static List<LynxModule> hubs = new ArrayList<>();
+  private static HardwareMap hardwareMap;
+  private static Telemetry dsTelemetry;
   
   //Stored Values
   public enum Alliance{
@@ -45,47 +48,17 @@ public class Robot{
     return factory.of(bluePose.x(), bluePose.y(), bluePose.heading());
   }
 
-  public static void requestAlliance(Gamepad gamepad){
-    telemetry.addLine("Press X for BLUE alliance, B for RED alliance");
+  public static void init(HardwareMap hardwareMap, Telemetry dsTelemetry){
+    Robot.hardwareMap = hardwareMap;
+    Robot.dsTelemetry = dsTelemetry;
+    Scheduler.reset();
 
-    if(gamepad.x){
-      alliance = Alliance.BLUE;
-    }
-    else if(gamepad.b){
-      alliance = Alliance.RED;
-    }
-
-    telemetry.addData("Current Alliance", alliance);
-    telemetry.update();
-  }
-
-  public static void initialize(HardwareMap hardwareMap, Telemetry dsTelemetry){
-    follower = Constants.create(hardwareMap);
-    initializeOpMode(hardwareMap, dsTelemetry);
-
-    if(!initialized) {
-      telemetry.addLine("Robot successfully initialized");
-    }
-    else{
-      telemetry.addLine("Robot using previous initialization state");
-      telemetry.addLine("If you would like to uninitialize, run the \"Uninitialize Robot\" OpMode");
-    }
-
-    initialized = true;
-    telemetry.update();
-  }
-
-  public static void clearBulkCache(){
-    for (LynxModule hub : hubs) {
-      hub.clearBulkCache();
-    }
-  }
-
-  public static void initializeOpMode(HardwareMap hardwareMap, Telemetry dsTelemetry){
     telemetry = new MultipleTelemetry( //apparently needs to reinit each time opmode inits
             dsTelemetry, // Driver Station telemetry
             FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
     );
+
+    follower = Constants.create(hardwareMap);
 
     hubs = hardwareMap.getAll(LynxModule.class);
     for (LynxModule hub : hubs) {
@@ -95,6 +68,44 @@ public class Robot{
     if(initialized) {
       //Do things like setting motor zero power behavior, direction, etc.
       follower.setPose(pose);
+    }
+  }
+
+  public static void initLoop(Gamepad gamepad){
+    if(gamepad.left_bumper && gamepad.right_bumper){
+      initialized = false;
+      init(hardwareMap, dsTelemetry);
+    }
+
+    if(initialized){
+      telemetry.addLine("Robot using previous initialization state");
+      telemetry.addLine("Press LB+RB to re-initialize");
+    }
+    else{
+      telemetry.addLine("Robot successfully initialized");
+      telemetry.addLine("Press X for BLUE alliance, B for RED alliance");
+      if(gamepad.x){
+        alliance = Alliance.BLUE;
+      }
+      else if(gamepad.b){
+        alliance = Alliance.RED;
+      }
+    }
+
+    telemetry.addData("Current Alliance", alliance);
+    telemetry.update();
+  }
+
+  public static void loop(){
+    initialized = true;
+    clearBulkCache();
+    follower.update();
+    pose = follower.pose();
+  }
+
+  public static void clearBulkCache(){
+    for (LynxModule hub : hubs) {
+      hub.clearBulkCache();
     }
   }
 }
