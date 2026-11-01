@@ -20,6 +20,7 @@ public abstract class TeleOpMode extends OpMode {
   public final void loop() {
     Robot.loop();
     onLoop();
+    Robot.telemetry.update();
     Scheduler.execute();
   }
 
