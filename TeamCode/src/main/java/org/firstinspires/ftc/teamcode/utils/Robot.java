@@ -68,7 +68,9 @@ public class Robot{
 
     if(initialized) {
       //Do things like setting motor zero power behavior, direction, etc.
-      follower.setPose(pose);
+      if(follower != null) {
+        follower.setPose(pose);
+      }
     }
   }
 
@@ -100,8 +102,10 @@ public class Robot{
   public static void loop(){
     initialized = true;
     clearBulkCache();
-    follower.update();
-    pose = follower.pose();
+    if (follower != null) {
+      follower.update();
+      pose = follower.pose();
+    }
   }
 
   public static void clearBulkCache(){
