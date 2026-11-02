@@ -1,108 +1,97 @@
 <script lang="ts">
   import { Pause, Play, Repeat } from "@lucide/svelte";
-  import type { Obstacle } from "../model/collision";
-  import { formatTime } from "../utils";
-  import { useProject } from "../state/project.svelte";
-  import { usePlayback } from "../state/playback.svelte";
+  import { PLAYBACK_RATES, useFeed, usePlayback } from "../state/viewer.svelte";
   import IconButton from "../lib/components/ui/IconButton.svelte";
+  import { fieldClass } from "../lib/components/ui/styles";
+  import SpeedGraph from "./SpeedGraph.svelte";
 
-  const project = useProject();
+  const feed = useFeed();
   const playback = usePlayback();
 
-  let percentOf = (seconds: number) =>
-    playback.duration > 0 ? (seconds / playback.duration) * 100 : 0;
+  let sim = $derived(feed.sim);
+  let sample = $derived(playback.sample);
 
-  /** Where each path ends on the timeline, in its own color. */
-  let markers = $derived(
-    playback.prediction.timeline
-      .filter((event) => event.type === "travel")
-      .map((event) => {
-        const index = project.doc.lines.findIndex(
-          (line) => line.id === event.lineId,
-        );
-        const line = project.doc.lines[index];
-        return {
-          percent: percentOf(event.endTime),
-          color: line?.color || "#ffffff",
-          name: line?.name || `Path ${index + 1}`,
-        };
-      }),
-  );
+  $effect(() => {
+    if (playback.time > playback.duration) playback.seek(playback.duration);
+  });
 
-  function collisionLabel(obstacle: Obstacle) {
-    if (obstacle.kind === "wall") return "Hits the field wall";
-    const shape = project.doc.shapes.find(
-      (candidate) => candidate.id === obstacle.shapeId,
-    );
-    return `Hits ${shape?.name || "an obstacle"}`;
-  }
-  let bands = $derived(
-    playback.collisions.map((collision) => ({
-      start: percentOf(collision.start),
-      end: percentOf(collision.end),
-      label: collisionLabel(collision.obstacle),
-    })),
+  let phase = $derived(
+    !sample
+      ? ""
+      : sample.holding
+        ? "holding"
+        : sample.braking
+          ? "braking"
+          : "driving",
   );
 </script>
 
-<div class="flex items-center gap-3 px-1">
-  <div class="flex items-center gap-0.5">
-    <IconButton
-      label={playback.playing ? "Pause (Space)" : "Play (Space)"}
-      onclick={() => playback.toggle()}
-      class="text-primary!"
-    >
-      {#if playback.playing}<Pause />{:else}<Play />{/if}
-    </IconButton>
-    <IconButton
-      label={playback.loop ? "Looping" : "Loop"}
-      active={playback.loop}
-      onclick={() => (playback.loop = !playback.loop)}
-    >
-      <Repeat />
-    </IconButton>
-  </div>
+{#if sim && sample}
+  <div class="flex flex-col gap-1.5 px-1" aria-label="Simulation playback">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-0.5">
+        <IconButton
+          label={playback.playing ? "Pause" : "Play"}
+          onclick={() => playback.toggle()}
+          class="text-primary!"
+        >
+          {#if playback.playing}<Pause />{:else}<Play />{/if}
+        </IconButton>
+        <IconButton
+          label={playback.loop ? "Looping" : "Loop"}
+          active={playback.loop}
+          onclick={() => (playback.loop = !playback.loop)}
+        >
+          <Repeat />
+        </IconButton>
+      </div>
+      <select
+        class={[fieldClass, "h-8 w-20! shrink-0"]}
+        aria-label="Playback speed"
+        bind:value={playback.rate}
+      >
+        {#each PLAYBACK_RATES as rate (rate)}
+          <option value={rate}>{rate}x</option>
+        {/each}
+      </select>
+      <input
+        type="range"
+        min="0"
+        max={sim.duration}
+        step={sim.dt}
+        value={playback.time}
+        aria-label="Playback position"
+        class="min-w-0 flex-1 cursor-pointer"
+        oninput={(event) =>
+          playback.seek(parseFloat(event.currentTarget.value))}
+      />
+      <div class="font-mono text-xs whitespace-nowrap text-body tabular-nums">
+        <span class="text-heading">{playback.time.toFixed(2)}</span>
+        / {sim.duration.toFixed(2)} s
+      </div>
+    </div>
 
-  <div class="relative h-2 min-w-0 flex-1 rounded-full bg-body/20">
-    <div
-      class="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-primary/70"
-      style={`width: ${playback.percent}%`}
-    ></div>
-    {#each bands as band, index (index)}
-      <button
-        type="button"
-        class="absolute inset-y-0 z-20 rounded-full bg-danger/80"
-        title={band.label}
-        aria-label={band.label}
-        style={`left: ${band.start}%; width: ${Math.max(0.6, band.end - band.start)}%;`}
-        onclick={() => playback.seek(band.start)}
-      ></button>
-    {/each}
-    {#each markers as marker, index (index)}
-      <button
-        type="button"
-        class="absolute top-1/2 z-20 size-2.5 -translate-1/2 rounded-full ring-2 ring-base"
-        title={marker.name}
-        aria-label={marker.name}
-        style={`left: ${marker.percent}%; background: ${marker.color};`}
-        onclick={() => playback.seek(marker.percent)}
-      ></button>
-    {/each}
-    <input
-      type="range"
-      min="0"
-      max="100"
-      step="0.000001"
-      value={playback.percent}
-      aria-label="Playback position"
-      class="slider absolute inset-0 z-10 h-2 w-full cursor-pointer appearance-none"
-      oninput={(event) => playback.seek(parseFloat(event.currentTarget.value))}
+    <SpeedGraph
+      {sim}
+      time={playback.time}
+      onseek={(seconds) => playback.seek(seconds)}
     />
-  </div>
 
-  <div class="font-mono text-xs whitespace-nowrap text-body tabular-nums">
-    <span class="text-heading">{formatTime(playback.seconds)}</span>
-    / {formatTime(playback.duration)}
-    · {playback.prediction.totalDistance.toFixed(0)} in
+    <div
+      class="flex flex-wrap gap-x-4 font-mono text-xs text-body tabular-nums"
+    >
+      <span
+        >speed <b class="text-heading">{sample.speed.toFixed(1)}</b> in/s</span
+      >
+      <span
+        >target <b class="text-heading">{sample.targetVelocity.toFixed(1)}</b> in/s</span
+      >
+      <span
+        >segment <b class="text-heading">{sample.segment + 1}</b> of {sim
+          .segments.length}</span
+      >
+      <span>t <b class="text-heading">{sample.closestT.toFixed(2)}</b></span>
+      <span class="text-heading">{phase}</span>
+    </div>
   </div>
-</div>
+{/if}

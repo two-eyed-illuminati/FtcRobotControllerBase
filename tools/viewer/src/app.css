@@ -92,93 +92,10 @@ img[alt="Robot"] {
   -webkit-user-drag: none !important;
 }
 
-/* Field markers take focus on click only to receive pointer events; no ring. */
-svg [role="button"]:focus {
-  outline: none;
-}
-
-[id^="selected-point-"] {
-  pointer-events: none !important;
-}
-
-.desktop-grid {
+.viewer-grid {
   display: grid;
-  /* Left panel, divider, field, divider, right panel. minmax(0, …) lets a
-     narrow window shrink the panels instead of overflowing. */
-  grid-template-columns:
-    minmax(0, var(--left-panel-width, 280px)) 18px minmax(0, 1fr)
-    18px minmax(0, var(--right-panel-width, 360px));
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
   align-items: stretch;
-}
-
-.panel-divider {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 0 4px;
-}
-
-.panel-divider-grip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 0;
-  border-radius: 0.75rem;
-  color: var(--body);
-  cursor: ew-resize;
-}
-
-.panel-divider-grip--restore {
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--heading) 5%, var(--surface));
-  cursor: pointer;
-}
-
-.panel-divider-grip:hover {
-  background: color-mix(in srgb, var(--heading) 8%, transparent);
-}
-
-.panel-divider-line {
-  width: 2px;
-  height: 48px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--body) 35%, transparent);
-}
-
-/* The playback scrubber: an invisible track over the drawn one, with a pink thumb. */
-.slider {
-  background: transparent;
-}
-
-.slider::-webkit-slider-runnable-track {
-  height: 0.5rem;
-  background: transparent;
-}
-
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  margin-top: -0.25rem;
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--base);
-  border-radius: 999px;
-  background: var(--color-primary);
-  cursor: pointer;
-}
-
-.slider::-moz-range-track {
-  height: 0.5rem;
-  background: transparent;
-}
-
-.slider::-moz-range-thumb {
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--base);
-  border-radius: 999px;
-  background: var(--color-primary);
-  cursor: pointer;
 }
 
 /* Text drawn over the field image, which looks the same in either theme. */
@@ -188,22 +105,4 @@ svg [role="button"]:focus {
   stroke-width: 3px;
   stroke-linejoin: round;
   paint-order: stroke;
-}
-
-/* Highlighted code carries both themes as variables; show the page's. */
-.shiki,
-.shiki span {
-  color: var(--shiki-light);
-}
-
-.dark .shiki,
-.dark .shiki span {
-  color: var(--shiki-dark);
-}
-
-.code-export .shiki {
-  min-height: 100%;
-  padding: 1rem 1.25rem;
-  background: var(--base);
-  font-family: var(--font-mono);
 }

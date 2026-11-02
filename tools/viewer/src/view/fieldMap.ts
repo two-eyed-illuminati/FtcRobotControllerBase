@@ -8,9 +8,6 @@ export function fieldMapSource(
   settings: Settings,
   scheme: ColorScheme,
 ): string {
-  if (settings.fieldMap === "custom") {
-    return settings.customFieldImage || FALLBACK_FIELD_MAP;
-  }
   if (!settings.fieldMap) return FALLBACK_FIELD_MAP;
   const file =
     FIELD_SCHEME_IMAGES[settings.fieldMap]?.[scheme] ?? settings.fieldMap;

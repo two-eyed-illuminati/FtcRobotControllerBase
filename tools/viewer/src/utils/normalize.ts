@@ -4,7 +4,6 @@ import type {
   FieldPoint,
   Heading,
   HeadingType,
-  AtomicPath,
   Path,
   WaitSegment,
   PiecewiseHeadingInterpolation,
@@ -110,27 +109,6 @@ export function normalizeHeading(line: StoredPath): Heading {
     return headingFromLegacy({ ...line.endPoint, heading: line.heading });
   }
   return headingFromLegacy(line.endPoint ?? {});
-}
-
-/** A new drivable segment ending at (x, y), with defaults matching normalizePaths. */
-export function createSegment(
-  x: number,
-  y: number,
-  options: { reverse?: boolean } = {},
-): AtomicPath {
-  return {
-    kind: "atomic",
-    id: makePathId(),
-    endPoint: { x, y },
-    controlPoints: [],
-    heading: { type: "tangential", reverse: options.reverse ?? false },
-    color: getRandomColor(),
-    locked: false,
-    waitBeforeMs: 0,
-    waitAfterMs: 0,
-    waitBeforeName: "",
-    waitAfterName: "",
-  };
 }
 
 /**

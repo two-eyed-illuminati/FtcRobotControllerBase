@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createCurve, curveOf, interpolatingBezier } from "../src/model/curve";
-import { motionProfile } from "../src/sim/motionProfile";
 import { getCurvePoint } from "../src/utils/math";
 import type { AtomicPath } from "../src/types";
 
@@ -86,35 +85,5 @@ describe("curve", () => {
       );
       expect(nearest).toBeLessThan(0.05);
     }
-  });
-});
-
-describe("motionProfile", () => {
-  const limits = {
-    forwardVelocity: 75,
-    strafeVelocity: 65,
-    maxAcceleration: 30,
-    maxDeceleration: 20,
-  };
-
-  it.each([5, 100])("covers exactly %d inches in its duration", (distance) => {
-    const profile = motionProfile(distance, limits);
-    expect(profile.distanceAt(profile.duration)).toBeCloseTo(distance, 9);
-    expect(profile.distanceAt(profile.duration + 1)).toBeCloseTo(distance, 9);
-  });
-
-  it("never moves backwards", () => {
-    const profile = motionProfile(100, limits);
-    let previous = 0;
-    for (let i = 0; i <= 100; i++) {
-      const travelled = profile.distanceAt((profile.duration * i) / 100);
-      expect(travelled).toBeGreaterThanOrEqual(previous - 1e-9);
-      previous = travelled;
-    }
-  });
-
-  it("drives at the average axis speed without acceleration limits", () => {
-    const profile = motionProfile(70, { ...limits, maxAcceleration: 0 });
-    expect(profile.duration).toBeCloseTo(1, 9);
   });
 });

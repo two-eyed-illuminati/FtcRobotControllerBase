@@ -1,144 +1,141 @@
 <script lang="ts">
-  import { PanelLeft, Plus, RotateCcw } from "@lucide/svelte";
-  import type { Settings } from "../types";
-  import { getDefaultShapes } from "../config/defaults";
-  import { createTriangle } from "../utils";
-  import { atomicSegments } from "../utils/pathTraversal";
-  import { setShapes } from "../model/commands";
-  import { useEditor } from "../state/editor.svelte";
-  import { useProject } from "../state/project.svelte";
-  import { usePlayback } from "../state/playback.svelte";
-  import type { Overlays } from "../state/overlays.svelte";
-  import IconButton from "../lib/components/ui/IconButton.svelte";
+  import { flattenToAtomicSegments } from "../utils/pathTraversal";
+  import { AVAILABLE_FIELD_MAPS } from "../config/defaults";
+  import { useFeed, useOptions } from "../state/viewer.svelte";
   import PanelSection from "../lib/components/ui/PanelSection.svelte";
-  import { surfaceClass } from "../lib/components/ui/styles";
-  import PathTree from "./layers/PathTree.svelte";
-  import ObstacleList from "./layers/ObstacleList.svelte";
-  import OverlayList from "./layers/OverlayList.svelte";
+  import {
+    checkboxClass,
+    fieldClass,
+    surfaceClass,
+  } from "../lib/components/ui/styles";
 
-  interface Props {
-    settings: Settings;
-    overlays: Overlays;
-    hidden?: boolean;
-    onHide: () => void;
-  }
+  const feed = useFeed();
+  const options = useOptions();
 
-  let { settings, overlays, hidden = false, onHide }: Props = $props();
-
-  const project = useProject();
-  const editor = useEditor();
-  const playback = usePlayback();
-
-  let overlaysOpen = $state(false);
-
-  function addObstacle() {
-    const shape = createTriangle();
-    project.apply(setShapes([...project.doc.shapes, shape]));
-    editor.selectShape(shape.id);
-  }
-
-  function resetObstacles() {
-    project.apply(setShapes(getDefaultShapes(settings.fieldMap)));
-  }
+  let segments = $derived(
+    feed.doc
+      ? flattenToAtomicSegments(feed.doc.startPoint, feed.doc.lines)
+      : [],
+  );
+  let totalLength = $derived(
+    segments.reduce((sum, segment) => sum + segment.curve.length, 0),
+  );
 </script>
 
 <aside
-  class={[
-    surfaceClass,
-    "flex min-h-0 flex-col gap-1 overflow-hidden p-2",
-    hidden && "pointer-events-none invisible",
-  ]}
+  class={[surfaceClass, "flex min-h-0 flex-col gap-1 overflow-hidden p-2"]}
   aria-label="Layers"
 >
-  <div class="flex items-center justify-between px-1 pb-1">
-    <h2 class="text-sm font-semibold text-heading">Layers</h2>
-    <IconButton label="Hide layers" size="sm" onclick={onHide}>
-      <PanelLeft />
-    </IconButton>
-  </div>
+  <h2 class="px-1 pb-1 text-sm font-semibold text-heading">Layers</h2>
 
   <div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-    <PanelSection
-      title="Paths"
-      count={atomicSegments(project.doc.lines).length}
-    >
-      {#snippet actions()}
-        <IconButton label="Add path" size="sm" onclick={() => editor.addPath()}>
-          <Plus />
-        </IconButton>
-      {/snippet}
-      <PathTree />
+    <PanelSection title="Paths" count={segments.length}>
+      <div class="flex flex-col gap-px">
+        {#each segments as { line, index, curve } (line.id)}
+          <label
+            class="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8"
+          >
+            <input
+              type="checkbox"
+              class={checkboxClass}
+              checked={!options.hiddenPathIds.has(line.id)}
+              onchange={() => options.togglePath(line.id)}
+            />
+            <span
+              class="size-2 shrink-0 rounded-full"
+              style={`background: ${line.color}`}
+            ></span>
+            <span class="truncate">{line.name || `Path ${index + 1}`}</span>
+            <span class="ml-auto font-mono text-[11px] tabular-nums opacity-70"
+              >{curve.length.toFixed(1)} in</span
+            >
+          </label>
+        {/each}
+        {#if segments.length === 0}
+          <p class="px-2 py-1 text-xs text-body">No paths.</p>
+        {:else}
+          <p class="px-2 pt-1 text-xs text-body">
+            Total {totalLength.toFixed(1)} in
+          </p>
+        {/if}
+      </div>
     </PanelSection>
 
-    {#if settings.experimentalFeatures?.obstacles}
-      <PanelSection title="Obstacles" count={project.doc.shapes.length}>
-        {#snippet actions()}
-          <IconButton
-            label="Reset obstacles to field default"
-            size="sm"
-            onclick={resetObstacles}
+    <PanelSection title="Show">
+      <div class="flex flex-col gap-px">
+        {#each [{ label: "Control points", key: "showControlPoints" }, { label: "Heading arrows", key: "showHeadings" }, { label: "Robot at start", key: "showRobotAtStart" }, { label: "Simulated trace", key: "showTrace" }, { label: "Robot footprints", key: "showFootprints" }, { label: "Swept area", key: "showSwept" }] as const as { label, key } (key)}
+          <label
+            class="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8"
           >
-            <RotateCcw />
-          </IconButton>
-          <IconButton label="Add obstacle" size="sm" onclick={addObstacle}>
-            <Plus />
-          </IconButton>
-        {/snippet}
-        <ObstacleList />
+            <input
+              type="checkbox"
+              class={checkboxClass}
+              bind:checked={options[key]}
+            />
+            {label}
+          </label>
+        {/each}
+        {#if options.showFootprints}
+          <label class="flex items-center gap-2 px-2 pt-1 text-xs text-body">
+            Spacing (in)
+            <input
+              type="number"
+              min="1"
+              class={fieldClass}
+              bind:value={options.footprintSpacing}
+            />
+          </label>
+        {/if}
+      </div>
+    </PanelSection>
+
+    {#if feed.sim}
+      <PanelSection title="Simulation">
+        <dl
+          class="grid grid-cols-[1fr_auto] gap-x-2 px-2 font-mono text-[11px] text-body tabular-nums"
+        >
+          <dt>duration</dt>
+          <dd class="text-heading">{feed.sim.duration.toFixed(2)} s</dd>
+          <dt>max speed</dt>
+          <dd class="text-heading">
+            {feed.sim.summary.maxSpeed.toFixed(1)} in/s
+          </dd>
+          <dt>end speed</dt>
+          <dd class="text-heading">
+            {feed.sim.summary.endSpeed.toFixed(2)} in/s
+          </dd>
+          <dt>end error</dt>
+          <dd class="text-heading">
+            {feed.sim.summary.endPositionError.toFixed(2)} in
+          </dd>
+        </dl>
+      </PanelSection>
+      <PanelSection title="Simulated robot" open={false}>
+        <p class="px-2 pb-1 text-xs text-body">
+          Tuned biobuzz config. Turn axis is assumed. Edit SimRobot.java.
+        </p>
+        <dl
+          class="grid grid-cols-[1fr_auto] gap-x-2 px-2 font-mono text-[11px] text-body"
+        >
+          {#each Object.entries(feed.sim.assumptions) as [key, value] (key)}
+            <dt class="truncate" title={key}>{key}</dt>
+            <dd class="max-w-32 truncate text-heading" title={String(value)}>
+              {typeof value === "number"
+                ? +value.toPrecision(4)
+                : String(value)}
+            </dd>
+          {/each}
+        </dl>
       </PanelSection>
     {/if}
 
-    <PanelSection
-      title="Overlays"
-      count={overlays.items.length || undefined}
-      bind:open={overlaysOpen}
-    >
-      <OverlayList {overlays} />
-    </PanelSection>
-
-    <PanelSection title="Robot">
-      {@const pose = playback.robotPose}
-      {@const readouts = [
-        { label: "X", value: pose.x.toFixed(1), unit: "in" },
-        { label: "Y", value: pose.y.toFixed(1), unit: "in" },
-        { label: "Heading", value: pose.heading.toFixed(0), unit: "°" },
-        { label: "t", value: pose.t?.toFixed(3) ?? "–", unit: "" },
-      ]}
-      <dl class="grid grid-cols-2 gap-1.5 px-1" aria-label="Robot pose">
-        {#each readouts as { label, value, unit } (label)}
-          <div
-            class="flex flex-col gap-0.5 rounded-lg border border-border bg-base/60 px-2.5 py-1.5"
-          >
-            <dt
-              class="text-[10px] font-medium tracking-wide text-body uppercase"
-            >
-              {label}
-            </dt>
-            <dd
-              class="flex items-baseline gap-1 font-mono text-sm text-heading tabular-nums"
-            >
-              {value}
-              {#if unit}<span class="text-[10px] text-body">{unit}</span>{/if}
-            </dd>
-          </div>
-        {/each}
-      </dl>
-      <!-- The padding widens the hover target beyond the thin bar. -->
-      <div
-        class="mx-1 mt-0.5 cursor-help py-1.5"
-        role="progressbar"
-        title="t: how far the robot is along the current path segment, from 0 (start) to 1 (end)"
-        aria-label="Progress along the current segment"
-        aria-valuemin={0}
-        aria-valuemax={1}
-        aria-valuenow={pose.t ?? 0}
-      >
-        <div class="h-1 overflow-hidden rounded-full bg-border">
-          <div
-            class="h-full rounded-full bg-primary"
-            style={`width: ${(pose.t ?? 0) * 100}%`}
-          ></div>
-        </div>
+    <PanelSection title="Field">
+      <div class="px-1">
+        <select class={fieldClass} bind:value={options.fieldMap}>
+          {#each AVAILABLE_FIELD_MAPS as field (field.value)}
+            <option value={field.value}>{field.label}</option>
+          {/each}
+        </select>
       </div>
     </PanelSection>
   </div>

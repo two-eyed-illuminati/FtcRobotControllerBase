@@ -1,8 +1,3 @@
-import {
-  getDefaultPaths,
-  getDefaultShapes,
-  getDefaultStartPoint,
-} from "../config/defaults";
 import type {
   FieldPoint,
   Path,
@@ -92,31 +87,4 @@ export function projectFromJson(
       : [],
   };
   return { ok: true, doc, warnings };
-}
-
-export function serializeProject(
-  doc: ProjectDoc,
-  options: { pretty?: boolean } = {},
-): string {
-  return JSON.stringify(
-    { version: PROJECT_VERSION, timestamp: new Date().toISOString(), ...doc },
-    null,
-    options.pretty ? 2 : undefined,
-  );
-}
-
-export function createDefaultProject(
-  robot: RobotConfig,
-  fieldMap: string,
-): ProjectDoc {
-  const lines = normalizePaths(getDefaultPaths());
-  return {
-    startPoint: getDefaultStartPoint(),
-    lines,
-    shapes: getDefaultShapes(fieldMap),
-    sequence: deriveSequence({}, lines),
-    fieldPoints: [],
-    robot,
-    activePaths: [],
-  };
 }

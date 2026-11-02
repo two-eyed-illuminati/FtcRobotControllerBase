@@ -1,172 +1,30 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import PanelDivider from "./lib/components/PanelDivider.svelte";
-  import MobileBlocked from "./lib/components/MobileBlocked.svelte";
-  import TopBar from "./view/TopBar.svelte";
+  import StatusBar from "./view/StatusBar.svelte";
   import LayersPanel from "./view/LayersPanel.svelte";
   import FieldPanel from "./view/FieldPanel.svelte";
-  import Inspector from "./view/Inspector.svelte";
-  import AppDialogs from "./view/AppDialogs.svelte";
-  import { createActions, shortcutsFor, type ActionDeps } from "./view/actions";
-  import { installShortcuts } from "./lib/shortcuts";
-  import { createDefaultProject, robotConfigOf } from "./io";
-  import { DEFAULT_SETTINGS, FIELD_SIZE } from "./config";
-  import { ProjectStore, provideProject } from "./state/project.svelte";
-  import { EditorState, provideEditor } from "./state/editor.svelte";
-  import { Playback, providePlayback } from "./state/playback.svelte";
-  import { Prefs } from "./state/prefs.svelte";
-  import { Overlays } from "./state/overlays.svelte";
-  import { PanelLayout } from "./state/layout.svelte";
-  import { ProjectFiles } from "./state/files.svelte";
-  import { GifExport } from "./state/gifExport.svelte";
-  import { Dialogs } from "./state/dialogs.svelte";
+  import {
+    PathFeed,
+    Playback,
+    ViewOptions,
+    provideViewer,
+  } from "./state/viewer.svelte";
   import { Theme } from "./state/theme.svelte";
 
-  const project = new ProjectStore(
-    createDefaultProject(
-      robotConfigOf(DEFAULT_SETTINGS),
-      DEFAULT_SETTINGS.fieldMap,
-    ),
-  );
-  const prefs = new Prefs(project);
-  const overlays = new Overlays(project, () => prefs.settings);
-  const playback = new Playback(project, overlays, () => prefs.settings);
-  const editor = new EditorState(project);
-  const layout = new PanelLayout(prefs);
-  const files = new ProjectFiles(project, prefs, overlays);
-  const gif = new GifExport(project, prefs, overlays);
-  const dialogs = new Dialogs();
+  const feed = new PathFeed();
+  const options = new ViewOptions();
   const theme = new Theme();
-  provideProject(project);
-  provideEditor(editor);
-  providePlayback(playback);
-  files.autosaveSession();
+  const playback = new Playback(feed);
+  provideViewer(feed, options, playback);
 
-  // Auto-collapse makes room while the field is busy, without touching the
-  // panels' own shown/hidden state.
-  let busy = $derived(
-    Boolean(prefs.settings.autoCollapsePanels) &&
-      (playback.playing || editor.tool === "pen"),
-  );
-  let leftHidden = $derived(layout.leftHidden || busy);
-  let rightHidden = $derived(
-    layout.rightHidden ||
-      busy ||
-      (Boolean(prefs.settings.autoCollapsePanels) &&
-        editor.selectedPathIds.length === 0 &&
-        !editor.selectedShape),
-  );
-
-  let fieldElement = $state<HTMLDivElement>();
-  let fieldPixels = $state(FIELD_SIZE);
-  let appDialogs = $state<AppDialogs>();
-
-  const deps: ActionDeps = {
-    project,
-    editor,
-    playback,
-    prefs,
-    files,
-    gif,
-    layout,
-    dialogs,
-    theme,
-    field: () => ({ element: fieldElement, pixels: fieldPixels }),
-    exportCode: (format) => appDialogs?.exportCode(format),
-  };
-  const actions = createActions(deps);
-
-  /** Only trust the browser's own report of a phone or tablet. */
-  function isMobileDevice() {
-    if (typeof navigator === "undefined") return false;
-    const hint = (
-      navigator as Navigator & { userAgentData?: { mobile?: boolean } }
-    ).userAgentData?.mobile;
-    return (
-      hint === true ||
-      /Android|iPhone|iPad|iPod|Mobile|Tablet|Silk/i.test(navigator.userAgent)
-    );
-  }
-  let isMobileBlocked = $state(isMobileDevice());
-
-  onMount(async () => {
-    await prefs.load();
-    files.start();
-    layout.restore(prefs.value);
-  });
-
-  onMount(() => {
-    const updateMobile = () => (isMobileBlocked = isMobileDevice());
-    window.addEventListener("resize", updateMobile);
-    window.addEventListener("orientationchange", updateMobile);
-    return () => {
-      window.removeEventListener("resize", updateMobile);
-      window.removeEventListener("orientationchange", updateMobile);
-    };
-  });
-
-  onMount(() => installShortcuts(shortcutsFor(actions, deps)));
+  onMount(() => void feed.start());
 </script>
 
-<svelte:window
-  onmousemove={(event) => layout.moveResize(event)}
-  onmouseup={() => layout.endResize()}
-  onblur={() => layout.endResize()}
-/>
+<StatusBar {theme} />
 
-{#if isMobileBlocked}
-  <MobileBlocked />
-{:else}
-  <TopBar {actions} />
-  <AppDialogs
-    bind:this={appDialogs}
-    {dialogs}
-    {gif}
-    {prefs}
-    {theme}
-    {files}
-    {actions}
-  />
-
-  <div class="h-screen w-screen px-3 pt-17 pb-3">
-    <div
-      class="desktop-grid h-full"
-      style={`--left-panel-width: ${leftHidden ? "0px" : `${layout.leftWidth}px`}; --right-panel-width: ${rightHidden ? "0px" : `${layout.rightWidth}px`};`}
-    >
-      <LayersPanel
-        settings={prefs.settings}
-        {overlays}
-        hidden={leftHidden}
-        onHide={() => layout.toggle("left")}
-      />
-
-      <PanelDivider
-        side="left"
-        hidden={leftHidden}
-        onResizeStart={(side, event) => layout.beginResize(side, event)}
-        onRestore={() => layout.show("left")}
-      />
-
-      <FieldPanel
-        settings={prefs.settings}
-        {overlays}
-        scheme={theme.resolved}
-        bind:element={fieldElement}
-        bind:pixels={fieldPixels}
-      />
-
-      <PanelDivider
-        side="right"
-        hidden={rightHidden}
-        onResizeStart={(side, event) => layout.beginResize(side, event)}
-        onRestore={() => layout.show("right")}
-      />
-
-      <Inspector
-        {prefs}
-        hidden={rightHidden}
-        onHide={() => layout.toggle("right")}
-      />
-    </div>
+<div class="h-screen w-screen px-3 pt-17 pb-3">
+  <div class="viewer-grid h-full gap-3">
+    <LayersPanel />
+    <FieldPanel scheme={theme.resolved} />
   </div>
-{/if}
+</div>

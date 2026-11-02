@@ -20,6 +20,8 @@ public class AutoBuilder {
   public List<Command> commands = new ArrayList<>();
   public PpExporter pp = new PpExporter();
   public Pose currentPose;
+  public Pose startPose;
+  public List<Path> paths = new ArrayList<>();
 
   public AutoBuilder() {
     this(null);
@@ -31,6 +33,7 @@ public class AutoBuilder {
 
   public AutoBuilder startAt(Pose bluePose) {
     currentPose = Robot.toField(bluePose);
+    startPose = currentPose;
     pp.startAt(currentPose);
     if (follower != null) follower.setPose(currentPose);
     return this;
@@ -57,6 +60,7 @@ public class AutoBuilder {
   public Command drive(Path path) {
     Pose end = path.endPose();
     pp.add(path);
+    paths.add(path);
     currentPose = end;
     return follower == null ? Command.NOOP : follow(follower, path);
   }
