@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Shared with the Pedro docs and AutoTune */
+@theme {
+  --color-primary: #c2427c;
+  --color-danger: #e60026;
+  --color-warning: #f59e0b;
+  --color-success: #22c55e;
+  --color-accent-foreground: #fafafa;
+  --color-surface-dark: #16161c;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --base: #fafafa;
+  --surface: #fefefe;
+  --border: #99999933;
+  --body: #737373;
+  --heading: #030303;
+  --gradient-base:
+    radial-gradient(60% 40% at 50% 0, #fe55a20f, #0000),
+    radial-gradient(40% 30% at 80%, #fe55a208, #0000);
+  color-scheme: light;
+}
+
+.dark {
+  --base: #0f0f14;
+  --surface: var(--color-surface-dark);
+  --border: #80808033;
+  --body: #999999;
+  --heading: #fafafa;
+  --gradient-base:
+    radial-gradient(60% 40% at 50% 0, #fe55a214, #0000),
+    radial-gradient(40% 30% at 80%, #fe55a20a, #0000),
+    radial-gradient(40% 30% at 10% 60%, #fe55a208, #0000);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-base: var(--base);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-body: var(--body);
+  --color-heading: var(--heading);
+}
+
+@layer base {
+  body {
+    @apply bg-base text-heading font-sans antialiased;
+    background-image: var(--gradient-base);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  ::selection {
+    @apply bg-primary/25;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  input,
+  textarea,
+  select {
+    color: var(--heading);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-body/70;
+  }
+
+  input[type="range"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply accent-primary;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--body) 35%, transparent)
+      transparent;
+  }
+}
+
+img[alt="Field"],
+img[alt="Robot"] {
+  pointer-events: none !important;
+  -webkit-user-drag: none !important;
+}
+
+.viewer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+/* Text drawn over the field image, which looks the same in either theme. */
+.field-label {
+  fill: white;
+  stroke: rgb(0 0 0 / 0.75);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}

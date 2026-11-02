@@ -1,0 +1,12 @@
+allprojects {
+  afterEvaluate { p ->
+    if (p.path == ':TeamCode') {
+      p.tasks.register('printExportCp') {
+        doLast {
+          def t = p.tasks.getByName('exportAutoPath')
+          println "CP=" + t.classpath.files.join(':')
+        }
+      }
+    }
+  }
+}

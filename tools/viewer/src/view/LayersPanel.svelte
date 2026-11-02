@@ -1,0 +1,102 @@
+<script lang="ts">
+  import { flattenToAtomicSegments } from "../utils/pathTraversal";
+  import { AVAILABLE_FIELD_MAPS } from "../config/defaults";
+  import { useFeed, useOptions } from "../state/viewer.svelte";
+  import PanelSection from "../lib/components/ui/PanelSection.svelte";
+  import {
+    checkboxClass,
+    fieldClass,
+    surfaceClass,
+  } from "../lib/components/ui/styles";
+
+  const feed = useFeed();
+  const options = useOptions();
+
+  let segments = $derived(
+    feed.doc
+      ? flattenToAtomicSegments(feed.doc.startPoint, feed.doc.lines)
+      : [],
+  );
+  let totalLength = $derived(
+    segments.reduce((sum, segment) => sum + segment.curve.length, 0),
+  );
+</script>
+
+<aside
+  class={[surfaceClass, "flex min-h-0 flex-col gap-1 overflow-hidden p-2"]}
+  aria-label="Layers"
+>
+  <h2 class="px-1 pb-1 text-sm font-semibold text-heading">Layers</h2>
+
+  <div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+    <PanelSection title="Paths" count={segments.length}>
+      <div class="flex flex-col gap-px">
+        {#each segments as { line, index, curve } (line.id)}
+          <label
+            class="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8"
+          >
+            <input
+              type="checkbox"
+              class={checkboxClass}
+              checked={!options.hiddenPathIds.has(line.id)}
+              onchange={() => options.togglePath(line.id)}
+            />
+            <span
+              class="size-2 shrink-0 rounded-full"
+              style={`background: ${line.color}`}
+            ></span>
+            <span class="truncate">{line.name || `Path ${index + 1}`}</span>
+            <span class="ml-auto font-mono text-[11px] tabular-nums opacity-70"
+              >{curve.length.toFixed(1)} in</span
+            >
+          </label>
+        {/each}
+        {#if segments.length === 0}
+          <p class="px-2 py-1 text-xs text-body">No paths.</p>
+        {:else}
+          <p class="px-2 pt-1 text-xs text-body">
+            Total {totalLength.toFixed(1)} in
+          </p>
+        {/if}
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Show">
+      <div class="flex flex-col gap-px">
+        {#each [{ label: "Control points", key: "showControlPoints" }, { label: "Heading arrows", key: "showHeadings" }, { label: "Robot at start", key: "showRobotAtStart" }, { label: "Robot footprints", key: "showFootprints" }, { label: "Swept area", key: "showSwept" }] as const as { label, key } (key)}
+          <label
+            class="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8"
+          >
+            <input
+              type="checkbox"
+              class={checkboxClass}
+              bind:checked={options[key]}
+            />
+            {label}
+          </label>
+        {/each}
+        {#if options.showFootprints}
+          <label class="flex items-center gap-2 px-2 pt-1 text-xs text-body">
+            Spacing (in)
+            <input
+              type="number"
+              min="1"
+              class={fieldClass}
+              bind:value={options.footprintSpacing}
+            />
+          </label>
+        {/if}
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Field">
+      <div class="px-1">
+        <select class={fieldClass} bind:value={options.fieldMap}>
+          {#each AVAILABLE_FIELD_MAPS as field (field.value)}
+            <option value={field.value}>{field.label}</option>
+          {/each}
+        </select>
+      </div>
+    </PanelSection>
+  </div>
+</aside>
