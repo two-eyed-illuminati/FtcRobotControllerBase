@@ -1,6 +1,7 @@
 import { getContext, setContext } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { DEFAULT_SETTINGS } from "../config";
+import { RUN_COLORS } from "../view/scene/colors";
 import { parseProject, robotConfigOf, type ProjectDoc } from "../io";
 import {
   parseSim,
@@ -18,6 +19,22 @@ type FeedMessage = (
 
 const ROBOT_FALLBACK = robotConfigOf(DEFAULT_SETTINGS);
 
+/** An extra trail, loaded from a file, drawn next to the exported simulation. */
+export class LoadedRun {
+  id: number;
+  label: string;
+  color: string;
+  sim: SimData;
+  visible = $state(true);
+
+  constructor(id: number, label: string, sim: SimData) {
+    this.id = id;
+    this.label = label;
+    this.sim = sim;
+    this.color = RUN_COLORS[(id - 1) % RUN_COLORS.length];
+  }
+}
+
 /** The exported path as last pushed by the dev server; keeps the last good drawing on errors. */
 export class PathFeed {
   status = $state<FeedStatus>("loading");
@@ -31,6 +48,10 @@ export class PathFeed {
   sim = $state.raw<SimData | null>(null);
   /** Why there is no simulation, when the export wrote none or it failed. */
   simError = $state<string | null>(null);
+  runs = $state.raw<LoadedRun[]>([]);
+  /** Why the last loaded file was not added as a run. */
+  runError = $state<string | null>(null);
+  private nextRunId = 1;
 
   async start() {
     import.meta.hot?.on("pp:update", (message: FeedMessage) =>
@@ -89,6 +110,27 @@ export class PathFeed {
     );
   }
 
+  addRun(label: string, text: string) {
+    const result = parseSim(text);
+    if (!result.ok) {
+      this.runError = `${label}: ${result.error}`;
+      console.error(`[viewer] run ${label} rejected: ${result.error}`);
+      return;
+    }
+    const run = new LoadedRun(this.nextRunId++, label, result.sim);
+    this.runs = [...this.runs, run];
+    this.runError = null;
+    console.info(
+      `[viewer] added run ${run.id} "${label}": ${result.sim.samples.t.length} samples, ` +
+        `${result.sim.duration.toFixed(2)} s; ${this.runs.length} runs loaded`,
+    );
+  }
+
+  removeRun(id: number) {
+    this.runs = this.runs.filter((run) => run.id !== id);
+    console.info(`[viewer] removed run ${id}; ${this.runs.length} runs loaded`);
+  }
+
   fail(error: string) {
     this.error = error;
     this.status = "error";
@@ -115,7 +157,7 @@ export class ViewOptions {
 
 export const PLAYBACK_RATES = [0.25, 0.5, 1, 2];
 
-/** Plays the simulation back in real time, scaled by `rate`. */
+/** Plays the simulation and every visible loaded run back in real time, scaled by `rate`. */
 export class Playback {
   time = $state(0);
   playing = $state(false);
@@ -128,7 +170,14 @@ export class Playback {
   sample: SimSample | null;
 
   constructor(feed: PathFeed) {
-    this.duration = $derived(feed.sim?.duration ?? 0);
+    this.duration = $derived(
+      Math.max(
+        feed.sim?.duration ?? 0,
+        ...feed.runs
+          .filter((run) => run.visible)
+          .map((run) => run.sim.duration),
+      ),
+    );
     this.sample = $derived(feed.sim ? sampleAt(feed.sim, this.time) : null);
   }
 

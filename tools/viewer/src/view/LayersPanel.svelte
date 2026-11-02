@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { Plus, X } from "@lucide/svelte";
   import { flattenToAtomicSegments } from "../utils/pathTraversal";
   import { AVAILABLE_FIELD_MAPS } from "../config/defaults";
   import { useFeed, useOptions } from "../state/viewer.svelte";
   import PanelSection from "../lib/components/ui/PanelSection.svelte";
+  import IconButton from "../lib/components/ui/IconButton.svelte";
   import {
     checkboxClass,
     fieldClass,
@@ -20,6 +22,14 @@
   let totalLength = $derived(
     segments.reduce((sum, segment) => sum + segment.curve.length, 0),
   );
+
+  async function addFiles(event: Event & { currentTarget: HTMLInputElement }) {
+    const input = event.currentTarget;
+    for (const file of input.files ?? []) {
+      feed.addRun(file.name, await file.text());
+    }
+    input.value = "";
+  }
 </script>
 
 <aside
@@ -85,6 +95,56 @@
               bind:value={options.footprintSpacing}
             />
           </label>
+        {/if}
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Runs" count={feed.runs.length}>
+      <div class="flex flex-col gap-px">
+        {#each feed.runs as run (run.id)}
+          <div
+            class="flex h-7 items-center gap-2 rounded-md pr-1 pl-2 text-sm text-body transition hover:bg-body/8"
+          >
+            <label class="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                type="checkbox"
+                class={checkboxClass}
+                bind:checked={run.visible}
+              />
+              <span
+                class="size-2 shrink-0 rounded-full"
+                style={`background: ${run.color}`}
+              ></span>
+              <span class="truncate" title={run.label}>{run.label}</span>
+              <span
+                class="ml-auto font-mono text-[11px] tabular-nums opacity-70"
+                >{run.sim.duration.toFixed(1)} s</span
+              >
+            </label>
+            <IconButton
+              label="Remove run"
+              size="sm"
+              onclick={() => feed.removeRun(run.id)}
+            >
+              <X />
+            </IconButton>
+          </div>
+        {/each}
+        <label
+          class="flex h-7 cursor-pointer items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8"
+        >
+          <Plus class="size-4" />
+          Add run (.sim.json)
+          <input
+            type="file"
+            accept=".json,application/json"
+            multiple
+            class="sr-only"
+            onchange={addFiles}
+          />
+        </label>
+        {#if feed.runError}
+          <p class="px-2 pt-1 text-xs text-danger">{feed.runError}</p>
         {/if}
       </div>
     </PanelSection>

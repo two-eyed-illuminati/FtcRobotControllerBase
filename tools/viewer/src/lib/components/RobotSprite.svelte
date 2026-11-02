@@ -7,6 +7,7 @@
     widthPx: number;
     heightPx: number;
     src?: string;
+    opacity?: number;
     onImageSettled?: () => void;
   }
 
@@ -18,6 +19,7 @@
     widthPx,
     heightPx,
     src = DEFAULT_ROBOT_IMAGE,
+    opacity = 1,
     onImageSettled = () => {},
   }: Props = $props();
 </script>
@@ -25,7 +27,7 @@
 <img
   {src}
   alt="Robot"
-  style={`position: absolute; top: ${xy.y}px; left: ${xy.x}px; transform: translate(-50%, -50%) rotate(${heading}deg); z-index: 20; width: ${widthPx}px; height: ${heightPx}px; user-select: none; pointer-events: none;`}
+  style={`position: absolute; top: ${xy.y}px; left: ${xy.x}px; transform: translate(-50%, -50%) rotate(${heading}deg); z-index: 20; width: ${widthPx}px; height: ${heightPx}px; user-select: none; pointer-events: none; opacity: ${opacity};`}
   draggable="false"
   onload={onImageSettled}
   onerror={(event) => {

@@ -3,11 +3,13 @@
 
   interface Props {
     sim: SimData;
+    others: { sim: SimData; color: string }[];
+    duration: number;
     time: number;
     onseek: (seconds: number) => void;
   }
 
-  let { sim, time, onseek }: Props = $props();
+  let { sim, others, duration, time, onseek }: Props = $props();
 
   const WIDTH = 1000;
   const HEIGHT = 100;
@@ -22,21 +24,28 @@
     Math.max(
       1,
       ...sim.samples.speed,
+      ...others.flatMap((other) => other.sim.samples.speed),
       ...sim.samples.targetVelocity.map((value) => Math.min(value, 1e6)),
     ) * 1.1,
   );
-  const xOf = (seconds: number) => (seconds / sim.duration) * WIDTH;
+  const xOf = (seconds: number) => (seconds / duration) * WIDTH;
   const yOf = (value: number) => HEIGHT - (Math.max(0, value) / top) * HEIGHT;
-  const line = (values: number[]) =>
+  const line = (data: SimData, values: number[]) =>
     values
       .map(
         (value, i) =>
-          `${xOf(sim.samples.t[i]).toFixed(1)},${yOf(value).toFixed(1)}`,
+          `${xOf(data.samples.t[i]).toFixed(1)},${yOf(value).toFixed(1)}`,
       )
       .join(" ");
 
-  let speedLine = $derived(line(sim.samples.speed));
-  let targetLine = $derived(line(sim.samples.targetVelocity));
+  let speedLine = $derived(line(sim, sim.samples.speed));
+  let targetLine = $derived(line(sim, sim.samples.targetVelocity));
+  let otherLines = $derived(
+    others.map((other) => ({
+      color: other.color,
+      points: line(other.sim, other.sim.samples.speed),
+    })),
+  );
   let markers = $derived(
     sim.events.filter((event) => event.type !== "pathStart" || event.t > 0),
   );
@@ -49,7 +58,7 @@
       1,
       Math.max(0, (event.clientX - rect.left) / rect.width),
     );
-    onseek(ratio * sim.duration);
+    onseek(ratio * duration);
   }
 </script>
 
@@ -80,6 +89,15 @@
       stroke-dasharray="6 4"
       vector-effect="non-scaling-stroke"
     />
+    {#each otherLines as other, index (index)}
+      <polyline
+        points={other.points}
+        fill="none"
+        stroke={other.color}
+        stroke-width="2"
+        vector-effect="non-scaling-stroke"
+      />
+    {/each}
     <polyline
       points={speedLine}
       fill="none"
@@ -118,7 +136,7 @@
           ? "bg-warning text-black"
           : "bg-body/30 text-heading",
       ]}
-      style={`left: ${(marker.t / sim.duration) * 100}%;`}
+      style={`left: ${(marker.t / duration) * 100}%;`}
       title={`${MARKER_LABELS[marker.type]} at ${marker.t.toFixed(2)} s, ${marker.speed.toFixed(1)} in/s`}
     >
       {marker.type === "join"

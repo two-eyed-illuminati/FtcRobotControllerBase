@@ -10,6 +10,7 @@
 
   let sim = $derived(feed.sim);
   let sample = $derived(playback.sample);
+  let others = $derived(feed.runs.filter((run) => run.visible));
 
   $effect(() => {
     if (playback.time > playback.duration) playback.seek(playback.duration);
@@ -57,7 +58,7 @@
       <input
         type="range"
         min="0"
-        max={sim.duration}
+        max={playback.duration}
         step={sim.dt}
         value={playback.time}
         aria-label="Playback position"
@@ -67,12 +68,14 @@
       />
       <div class="font-mono text-xs whitespace-nowrap text-body tabular-nums">
         <span class="text-heading">{playback.time.toFixed(2)}</span>
-        / {sim.duration.toFixed(2)} s
+        / {playback.duration.toFixed(2)} s
       </div>
     </div>
 
     <SpeedGraph
       {sim}
+      {others}
+      duration={playback.duration}
       time={playback.time}
       onseek={(seconds) => playback.seek(seconds)}
     />

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { FIELD_SIZE, type ColorScheme } from "../config/defaults";
   import { robotConfigOf } from "../io";
+  import { sampleAt } from "../sim/simData";
   import { DEFAULT_SETTINGS } from "../config";
   import { generateGhostPathPoints, generateOnionLayers } from "../model/sweep";
   import { flattenToAtomicSegments } from "../utils/pathTraversal";
@@ -76,6 +77,20 @@
           y: feed.sim!.samples.y[i],
         }))
       : [],
+  );
+
+  let shownRuns = $derived(feed.runs.filter((run) => run.visible));
+  let runTraces = $derived(
+    shownRuns.map((run) => ({
+      run,
+      points: run.sim.samples.x.map((px, i) => ({
+        x: px,
+        y: run.sim.samples.y[i],
+      })),
+    })),
+  );
+  let runSamples = $derived(
+    shownRuns.map((run) => ({ run, sample: sampleAt(run.sim, playback.time) })),
   );
 
   let fieldMapSrc = $derived(
@@ -197,6 +212,16 @@
             onImageSettled={() => (loadedRobotImage = robotImageSrc)}
           />
         {/if}
+        {#each runSamples as { run, sample: runSample } (run.id)}
+          <RobotSprite
+            xy={{ x: x(runSample.x), y: y(runSample.y) }}
+            heading={-(runSample.heading * 180) / Math.PI}
+            widthPx={x(robot.rLength)}
+            heightPx={x(robot.rWidth)}
+            src={robotImageSrc}
+            opacity={0.55}
+          />
+        {/each}
 
         <svg
           class="pointer-events-none absolute inset-0 z-30"
@@ -234,6 +259,25 @@
                 opacity={0.9}
               />
             {/if}
+            {#each runTraces as { run, points } (run.id)}
+              {#if points.length > 1}
+                <path
+                  d={polylinePath(points, false)}
+                  fill="none"
+                  stroke={run.color}
+                  stroke-width={0.5}
+                  opacity={0.9}
+                />
+              {/if}
+            {/each}
+            {#each runSamples as { run, sample: runSample } (run.id)}
+              <circle
+                cx={runSample.x}
+                cy={runSample.y}
+                r={1.2}
+                fill={run.color}
+              />
+            {/each}
             <PathStrokes segments={shownSegments} />
             {#if options.showHeadings}
               <HeadingArrows all={allSegments} shown={shownSegments} />
