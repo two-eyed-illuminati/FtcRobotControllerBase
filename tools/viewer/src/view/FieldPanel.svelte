@@ -1,224 +1,622 @@
 <script lang="ts">
-  import { FIELD_SIZE, type ColorScheme } from "../config/defaults";
-  import { robotConfigOf } from "../io";
-  import { DEFAULT_SETTINGS } from "../config";
+  import type { BasePoint, Settings } from "../types";
+  import { FIELD_SIZE, LINE_WIDTH, type ColorScheme } from "../config/defaults";
+  import { gridSize, showGrid, snapToGrid } from "../stores";
+  import {
+    pointAt,
+    setShapes,
+    updatePoint,
+    type PointAddress,
+  } from "../model/commands";
+  import { atomicSegments } from "../utils/pathTraversal";
+  import { robotFootprint } from "../model/collision";
   import { generateGhostPathPoints, generateOnionLayers } from "../model/sweep";
-  import { flattenToAtomicSegments } from "../utils/pathTraversal";
-  import { useFeed, useOptions } from "../state/viewer.svelte";
+  import { robotPoseAt } from "../sim/pose";
+  import { smoothStrokePreview } from "../lib/pen/strokeFitting";
+  import { selectVisibleOnionLayers } from "../lib/scene/onion";
+  import { showToast } from "../lib/toast";
+  import { distanceBetweenPoints } from "../utils/math";
+  import { useProject } from "../state/project.svelte";
+  import { useEditor } from "../state/editor.svelte";
+  import { usePlayback } from "../state/playback.svelte";
+  import type { Overlays } from "../state/overlays.svelte";
+  import ContextMenu from "../lib/components/ui/ContextMenu.svelte";
+  import type { MenuEntry } from "../lib/components/ui/menu";
   import { surfaceClass } from "../lib/components/ui/styles";
   import FieldMapImage from "../lib/components/FieldMapImage.svelte";
   import FieldLoadingOverlay from "../lib/components/FieldLoadingOverlay.svelte";
   import RobotSprite from "../lib/components/RobotSprite.svelte";
+  import MathTools from "../lib/MathTools.svelte";
   import PathStrokes from "./scene/PathStrokes.svelte";
   import PathMarkers from "./scene/PathMarkers.svelte";
-  import HeadingArrows from "./scene/HeadingArrows.svelte";
+  import Obstacles from "./scene/Obstacles.svelte";
   import { polylinePath } from "./scene/svgPath";
-  import { FIELD_POINT_COLOR, GHOST_COLOR } from "./scene/colors";
+  import {
+    COLLISION_COLOR,
+    FIELD_POINT_COLOR,
+    GHOST_COLOR,
+    PEN_PREVIEW_COLOR,
+  } from "./scene/colors";
+  import ToolRail from "./ToolRail.svelte";
+  import FieldViewToggles from "./FieldViewToggles.svelte";
+  import PlaybackBar from "./PlaybackBar.svelte";
   import { fieldMapSource } from "./fieldMap";
+  import { snapPoint } from "./snap";
   import { createViewport } from "./viewport";
 
   interface Props {
+    settings: Settings;
+    overlays: Overlays;
+    /** Picks the field image variant for fields that have one per scheme. */
     scheme: ColorScheme;
+    /** The field element, for exporting it as an image. */
+    element?: HTMLDivElement;
+    /** The field's size on screen, in pixels. */
+    pixels?: number;
   }
 
-  let { scheme }: Props = $props();
+  let {
+    settings,
+    overlays,
+    scheme,
+    element = $bindable(),
+    pixels = $bindable(FIELD_SIZE),
+  }: Props = $props();
 
-  const feed = useFeed();
-  const options = useOptions();
-
-  const MIN_ZOOM = 1;
-  const MAX_ZOOM = 12;
-  let view = $state({ zoom: 1, panX: 0, panY: 0 });
-  let panning: { x: number; y: number } | null = $state(null);
+  const project = useProject();
+  const editor = useEditor();
+  const playback = usePlayback();
 
   let stageWidth = $state(FIELD_SIZE);
   let stageHeight = $state(FIELD_SIZE);
-  let pixels = $derived(
-    Math.max(1, Math.floor(Math.min(stageWidth, stageHeight) - 16)),
-  );
+  $effect.pre(() => {
+    pixels = Math.max(1, Math.floor(Math.min(stageWidth, stageHeight) - 16));
+  });
   let viewport = $derived(createViewport(pixels));
   let { x, y } = $derived(viewport);
 
-  let doc = $derived(feed.doc);
-  let robot = $derived(doc?.robot ?? robotConfigOf(DEFAULT_SETTINGS));
-  let allSegments = $derived(
-    doc ? flattenToAtomicSegments(doc.startPoint, doc.lines) : [],
-  );
-  let shownSegments = $derived(
-    allSegments.filter(
-      (segment) => !options.hiddenPathIds.has(segment.line.id),
-    ),
-  );
-  let ghost = $derived(
-    doc && options.showSwept
-      ? generateGhostPathPoints(doc.startPoint, doc.lines, robot.rWidth, 50)
-      : [],
-  );
-  let footprints = $derived(
-    doc && options.showFootprints
-      ? generateOnionLayers(
-          doc.startPoint,
-          doc.lines,
-          robot.rLength,
-          robot.rWidth,
-          Math.max(1, options.footprintSpacing),
-        ).filter((layer) => !options.hiddenPathIds.has(layer.lineId))
-      : [],
-  );
-
-  let fieldMapSrc = $derived(
-    fieldMapSource({ ...DEFAULT_SETTINGS, fieldMap: options.fieldMap }, scheme),
-  );
+  let doc = $derived(project.doc);
+  let obstaclesOn = $derived(Boolean(settings.experimentalFeatures?.obstacles));
+  let fieldMapSrc = $derived(fieldMapSource(settings, scheme));
+  let robotImageSrc = $derived(settings.robotImage || "/robot.png");
   let loadedFieldMap = $state("");
   let loadedRobotImage = $state("");
-  const robotImageSrc = "/robot.png";
   let assetsReady = $derived(
     loadedFieldMap === fieldMapSrc && loadedRobotImage === robotImageSrc,
   );
 
-  function onWheel(event: WheelEvent) {
-    event.preventDefault();
-    const zoom = Math.min(
-      MAX_ZOOM,
-      Math.max(MIN_ZOOM, view.zoom * Math.exp(-event.deltaY * 0.002)),
-    );
-    const rect = (event.currentTarget as HTMLElement)
-      .querySelector("[data-field]")!
-      .getBoundingClientRect();
-    const ratio = zoom / view.zoom;
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    view = {
-      zoom,
-      panX: view.panX + (event.clientX - centerX) * (1 - ratio),
-      panY: view.panY + (event.clientY - centerY) * (1 - ratio),
+  let ghost = $derived(
+    settings.showGhostPaths && !overlays.active
+      ? generateGhostPathPoints(doc.startPoint, doc.lines, settings.rWidth, 50)
+      : [],
+  );
+  let overlayGhosts = $derived(
+    settings.showGhostPaths && overlays.active
+      ? overlays.items.map((overlay) =>
+          generateGhostPathPoints(
+            overlay.doc.startPoint,
+            overlay.doc.lines,
+            settings.rWidth,
+            50,
+          ),
+        )
+      : [],
+  );
+  let onionLayers = $derived(
+    settings.showOnionLayers && !overlays.active
+      ? selectVisibleOnionLayers(
+          generateOnionLayers(
+            doc.startPoint,
+            doc.lines,
+            settings.rLength,
+            settings.rWidth,
+            settings.onionLayerSpacing || 6,
+          ),
+          playback.prediction,
+          playback.percent,
+          settings.onionNextPointOnly,
+        )
+      : [],
+  );
+  let penPreview = $derived(
+    editor.tool === "pen" && editor.penStroke.length >= 2
+      ? smoothStrokePreview(editor.penStroke, 4)
+      : [],
+  );
+  /** Each collision as the stretch of path the robot overlaps, plus where it first touches. */
+  let collisionMarks = $derived(
+    playback.collisions.map((collision) => {
+      const samples = 24;
+      const trace = Array.from({ length: samples + 1 }, (_, i) => {
+        const pose = robotPoseAt(
+          collision.start + ((collision.end - collision.start) * i) / samples,
+          playback.prediction.timeline,
+          doc.startPoint,
+          doc.lines,
+          settings,
+        );
+        return { x: pose.x, y: pose.y };
+      });
+      return {
+        trace,
+        footprint: robotFootprint(collision.firstContact, settings),
+      };
+    }),
+  );
+
+  /** Screen pose for a robot sprite; sprites rotate clockwise. */
+  const sprite = (pose: { x: number; y: number; heading: number }) => ({
+    xy: { x: x(pose.x), y: y(pose.y) },
+    heading: -pose.heading,
+  });
+
+  type DragTarget =
+    | { kind: "project"; address: PointAddress }
+    | { kind: "overlay"; index: number; address: PointAddress };
+  let drag = $state<{ target: DragTarget; offset: BasePoint } | null>(null);
+  let pendingMove: (() => void) | null = null;
+
+  function fieldPoint(event: PointerEvent | MouseEvent): BasePoint {
+    const rect = element!.getBoundingClientRect();
+    return {
+      x: x.invert(event.clientX - rect.left),
+      y: y.invert(event.clientY - rect.top),
     };
-    if (zoom === MIN_ZOOM) resetView();
+  }
+
+  function snapped(point: BasePoint): BasePoint {
+    return snapPoint(point, {
+      snapToGrid: $snapToGrid,
+      showGrid: $showGrid,
+      gridSize: $gridSize,
+    });
+  }
+
+  function beginDrag(target: DragTarget, event: PointerEvent) {
+    const source =
+      target.kind === "project" ? doc : overlays.items[target.index]?.doc;
+    const point = source && pointAt(source, target.address);
+    if (!point) return;
+    const mouse = fieldPoint(event);
+    drag = { target, offset: { x: point.x - mouse.x, y: point.y - mouse.y } };
+    (event.currentTarget as Element)
+      .closest("svg")
+      ?.setPointerCapture(event.pointerId);
+  }
+
+  type PressTarget = "path" | "shape" | "field";
+  /** The open context menu, and what the right-click that opened it landed on. */
+  let menu = $state<{
+    x: number;
+    y: number;
+    target: PressTarget;
+    at: BasePoint;
+  } | null>(null);
+  let pressedTarget: PressTarget = "field";
+
+  function onProjectPointDown(
+    address: PointAddress,
+    locked: boolean,
+    event: PointerEvent,
+  ) {
+    if (editor.tool !== "select") return;
+    event.stopPropagation();
+    pressedTarget = "path";
+    if (address.kind === "path") {
+      editor.selectPoint(address.lineId, address.index);
+    }
+    if (!locked && event.button === 0) {
+      beginDrag({ kind: "project", address }, event);
+    }
+  }
+
+  function onSegmentDown(lineId: string, event: PointerEvent) {
+    if (editor.tool !== "select") return;
+    event.stopPropagation();
+    pressedTarget = "path";
+    editor.selectPoint(lineId, 0);
+  }
+
+  function onShapePress(shapeId: string, event: PointerEvent) {
+    if (editor.tool !== "select") return;
+    event.stopPropagation();
+    pressedTarget = "shape";
+    editor.selectShape(shapeId);
+  }
+
+  function onContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    if (editor.tool !== "select" || overlays.active) return;
+    menu = {
+      x: event.clientX,
+      y: event.clientY,
+      target: pressedTarget,
+      at: snapped(fieldPoint(event)),
+    };
+  }
+
+  let menuEntries = $derived.by((): MenuEntry[] => {
+    if (!menu) return [];
+    const { target, at } = menu;
+    const line = editor.selectedLine;
+    if (target === "shape" && editor.selectedShape) {
+      const shapeId = editor.selectedShape.id;
+      return [
+        {
+          label: "Delete obstacle",
+          danger: true,
+          run: () => {
+            project.apply(
+              setShapes(doc.shapes.filter((shape) => shape.id !== shapeId)),
+            );
+            editor.clearSelection();
+          },
+        },
+      ];
+    }
+    if (target === "field" || !line) {
+      return [
+        { label: "Add path here", run: () => editor.addPathAt(at) },
+        ...(line
+          ? [
+              {
+                label: `Add control point to ${line.name || "the selected path"}`,
+                run: () => editor.addControlPoint(at),
+              },
+            ]
+          : []),
+      ];
+    }
+    const onEndPoint = editor.selectedPointIndex === 0;
+    return [
+      {
+        label: "Add control point here",
+        hint: "A",
+        run: () => editor.addControlPoint(at),
+      },
+      {
+        label: "Insert a path before this point",
+        run: () => editor.insertPathBeforeSelection(),
+      },
+      "separator",
+      {
+        label: onEndPoint ? "Delete path" : "Delete control point",
+        hint: "Del",
+        danger: true,
+        disabled: onEndPoint && atomicSegments(doc.lines).length <= 1,
+        run: () => editor.deleteSelectedPoint(),
+      },
+    ];
+  });
+
+  /** Drag edits are applied once per frame; the scene redraw is the heavy part. */
+  function scheduleMove(move: () => void) {
+    if (!pendingMove) requestAnimationFrame(flushMove);
+    pendingMove = move;
+  }
+
+  function flushMove() {
+    const move = pendingMove;
+    pendingMove = null;
+    move?.();
   }
 
   function onPointerDown(event: PointerEvent) {
+    pressedTarget = "field";
     if (event.button !== 0) return;
-    panning = { x: event.clientX - view.panX, y: event.clientY - view.panY };
-    (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    const point = fieldPoint(event);
+    if (editor.tool === "select") {
+      editor.clearSelection();
+    } else if (editor.tool === "pen") {
+      editor.penStroke = [snapped(point)];
+      (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    } else if (editor.tool === "coordinate") {
+      const { x: px, y: py } = snapped(point);
+      const text = `${px.toFixed(2)}, ${py.toFixed(2)}`;
+      void navigator.clipboard?.writeText(text);
+      showToast(`Copied (${text})`, "success");
+      editor.setTool("select");
+    }
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (!panning) return;
-    view = {
-      ...view,
-      panX: event.clientX - panning.x,
-      panY: event.clientY - panning.y,
-    };
+    const point = fieldPoint(event);
+    if (editor.tool === "coordinate") {
+      editor.coordinateHover = snapped(point);
+    } else if (editor.tool === "pen" && editor.penStroke.length > 0) {
+      const next = snapped(point);
+      const last = editor.penStroke[editor.penStroke.length - 1];
+      if (distanceBetweenPoints(last, next) >= 0.2) {
+        editor.penStroke = [...editor.penStroke, next];
+      }
+    } else if (drag) {
+      const { target, offset } = drag;
+      const next = snapped({ x: point.x + offset.x, y: point.y + offset.y });
+      scheduleMove(() => {
+        if (target.kind === "project") {
+          project.preview(updatePoint(target.address, next));
+        } else {
+          overlays.movePoint(target.index, target.address, next);
+        }
+      });
+    }
   }
 
-  function resetView() {
-    view = { zoom: 1, panX: 0, panY: 0 };
+  function onPointerUp() {
+    if (editor.tool === "pen" && editor.penStroke.length > 0) {
+      editor.commitPenStroke(Number(settings.penToolMaxPaths ?? 8));
+    }
+    if (drag) {
+      flushMove();
+      project.commit();
+      drag = null;
+    }
+  }
+
+  function onDoubleClick(event: MouseEvent) {
+    if (editor.tool !== "select") return;
+    if ((event.target as Element).closest("[role=button]")) return;
+    editor.addPathAt(snapped(fieldPoint(event)));
   }
 </script>
 
 <main class={[surfaceClass, "flex min-h-0 flex-col gap-2 p-2"]}>
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class={[
-      "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-body/10",
-      panning ? "cursor-grabbing" : "cursor-grab",
-    ]}
+    class="relative flex min-h-0 flex-1 items-center justify-center rounded-xl bg-body/10"
     bind:clientWidth={stageWidth}
     bind:clientHeight={stageHeight}
-    onwheel={onWheel}
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={() => (panning = null)}
-    onlostpointercapture={() => (panning = null)}
-    ondblclick={resetView}
   >
+    <div class="absolute top-2 left-2 z-50"><ToolRail /></div>
+    <div class="absolute top-2 right-2 z-50"><FieldViewToggles /></div>
+
     <div
-      data-field
+      bind:this={element}
       class="relative overflow-clip rounded-lg bg-base select-none"
-      role="img"
-      aria-label="Field with exported path"
-      style={`width: ${pixels}px; height: ${pixels}px; transform: translate(${view.panX}px, ${view.panY}px) scale(${view.zoom});`}
+      role="application"
+      style={`width: ${pixels}px; height: ${pixels}px; max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1; -webkit-touch-callout: none;`}
+      oncontextmenu={onContextMenu}
     >
       <FieldMapImage
         src={fieldMapSrc}
-        fieldMapName={options.fieldMap}
+        fieldMapName={settings.fieldMap}
         onSettled={() => (loadedFieldMap = fieldMapSrc)}
       />
 
-      {#if doc}
-        <svg
-          class="pointer-events-none absolute inset-0 z-15"
-          viewBox={`0 0 ${FIELD_SIZE} ${FIELD_SIZE}`}
-          width={pixels}
-          height={pixels}
-          aria-hidden="true"
-        >
-          <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
-            {#each doc.fieldPoints as point, i (i)}
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={(Math.max(0.6, point.radius ?? 2.2) * FIELD_SIZE) / pixels}
-                fill={point.color || FIELD_POINT_COLOR}
-                opacity={Math.max(0, Math.min(1, point.opacity ?? 1))}
-              />
-            {/each}
-          </g>
-        </svg>
+      <svg
+        class="pointer-events-none absolute inset-0 z-15"
+        viewBox={`0 0 ${FIELD_SIZE} ${FIELD_SIZE}`}
+        width={pixels}
+        height={pixels}
+        aria-hidden="true"
+      >
+        <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
+          {#each doc.fieldPoints as point, i (i)}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={(Math.max(0.6, point.radius ?? 2.2) * FIELD_SIZE) / pixels}
+              fill={point.color || FIELD_POINT_COLOR}
+              opacity={Math.max(0, Math.min(1, point.opacity ?? 1))}
+            />
+          {/each}
+        </g>
+      </svg>
 
-        {#if options.showRobotAtStart}
+      {#if editor.tool === "coordinate" && editor.coordinateHover}
+        <div
+          class="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full rounded bg-black/85 px-2 py-1 text-[11px] font-medium whitespace-nowrap text-white shadow"
+          style={`left: ${x(editor.coordinateHover.x)}px; top: ${y(editor.coordinateHover.y)}px;`}
+        >
+          <span class="mr-1 text-primary">+</span>
+          {editor.coordinateHover.x.toFixed(2)}, {editor.coordinateHover.y.toFixed(
+            2,
+          )}
+        </div>
+      {/if}
+
+      <MathTools
+        {x}
+        {y}
+        fieldElement={element}
+        robotXY={sprite(playback.robotPose).xy}
+      />
+
+      {#if overlays.active}
+        {#each playback.overlayPoses as pose, index (index)}
+          {@const { xy, heading } = sprite(pose)}
           <RobotSprite
-            xy={{ x: x(doc.startPoint.x), y: y(doc.startPoint.y) }}
-            heading={-doc.startPoint.headingDeg}
-            widthPx={x(robot.rLength)}
-            heightPx={x(robot.rWidth)}
-            src={robotImageSrc}
+            {xy}
+            {heading}
+            widthPx={x(settings.rLength)}
+            heightPx={x(settings.rWidth)}
+            {settings}
+            alt="Robot {index + 1}"
+            zIndex={20 - index}
+            arrowZIndex={20 - index}
+            opacity={1 - index * 0.15}
+            arrowId="arrowhead-{index}"
             onImageSettled={() => (loadedRobotImage = robotImageSrc)}
           />
-        {/if}
+        {/each}
+      {:else}
+        {@const { xy, heading } = sprite(playback.robotPose)}
+        <RobotSprite
+          {xy}
+          {heading}
+          widthPx={x(settings.rLength)}
+          heightPx={x(settings.rWidth)}
+          {settings}
+          alt="Robot"
+          zIndex={20}
+          arrowZIndex={21}
+          arrowId="arrowhead-main"
+          onImageSettled={() => (loadedRobotImage = robotImageSrc)}
+        />
+      {/if}
 
-        <svg
-          class="pointer-events-none absolute inset-0 z-30"
-          viewBox={`0 0 ${FIELD_SIZE} ${FIELD_SIZE}`}
-          width={pixels}
-          height={pixels}
-          aria-hidden="true"
-        >
-          <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
-            {#if ghost.length >= 3}
+      <svg
+        class={[
+          "absolute inset-0 z-30",
+          editor.tool !== "select" && "cursor-crosshair",
+          drag && "cursor-grabbing",
+        ]}
+        viewBox={`0 0 ${FIELD_SIZE} ${FIELD_SIZE}`}
+        width={pixels}
+        height={pixels}
+        role="presentation"
+        onpointerdown={onPointerDown}
+        onpointermove={onPointerMove}
+        onpointerup={onPointerUp}
+        onlostpointercapture={onPointerUp}
+        onpointerleave={() => (editor.coordinateHover = null)}
+        ondblclick={onDoubleClick}
+      >
+        <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
+          {#if obstaclesOn}
+            <Obstacles
+              shapes={doc.shapes}
+              selectedId={editor.selectedShape?.id}
+              onShapeDown={onShapePress}
+              onVertexDown={(address, event) => {
+                if (editor.tool !== "select" || address.kind !== "vertex") {
+                  return;
+                }
+                onShapePress(address.shapeId, event);
+                if (event.button === 0) {
+                  beginDrag({ kind: "project", address }, event);
+                }
+              }}
+            />
+          {/if}
+
+          {#if ghost.length >= 3}
+            <path
+              d={polylinePath(ghost, true)}
+              fill={GHOST_COLOR}
+              stroke={GHOST_COLOR}
+              stroke-width={0.5}
+              opacity={0.15}
+              pointer-events="none"
+            />
+          {/if}
+          {#each overlayGhosts as outline, index (index)}
+            {#if outline.length >= 3}
               <path
-                d={polylinePath(ghost, true)}
-                fill={GHOST_COLOR}
-                stroke={GHOST_COLOR}
+                d={polylinePath(outline, true)}
+                fill={overlays.items[index]?.color ?? GHOST_COLOR}
+                stroke={overlays.items[index]?.color ?? GHOST_COLOR}
                 stroke-width={0.5}
                 opacity={0.15}
+                pointer-events="none"
               />
             {/if}
-            {#each footprints as layer, index (index)}
-              <path
-                d={polylinePath(layer.corners, true)}
-                fill="none"
-                stroke="#dc2626"
-                stroke-width={0.28}
-                opacity={0.9}
+          {/each}
+          {#each onionLayers as layer, index (index)}
+            <path
+              d={polylinePath(layer.corners, true)}
+              fill="none"
+              stroke={settings.onionColor || "#dc2626"}
+              stroke-width={0.28}
+              opacity={0.9}
+              pointer-events="none"
+            />
+          {/each}
+
+          {#if penPreview.length >= 2}
+            <path
+              d={polylinePath(penPreview)}
+              fill="none"
+              stroke={PEN_PREVIEW_COLOR}
+              stroke-width={LINE_WIDTH * 0.9}
+              stroke-dasharray="0.6 0.6"
+              opacity={0.35}
+              pointer-events="none"
+            />
+          {/if}
+
+          {#if overlays.active}
+            {#each overlays.items as overlay, index (overlay.filePath)}
+              <PathStrokes
+                startPoint={overlay.doc.startPoint}
+                lines={overlay.doc.lines}
+                idPrefix={`additional-path-${index}-line`}
+                color={overlay.color}
+                opacity={(settings.pathOpacity || 1) * (1 - index * 0.1)}
+                honorLocked={false}
               />
             {/each}
-            <PathStrokes segments={shownSegments} />
-            {#if options.showHeadings}
-              <HeadingArrows all={allSegments} shown={shownSegments} />
-            {/if}
+            {#each overlays.items as overlay, index (overlay.filePath)}
+              <PathMarkers
+                startPoint={overlay.doc.startPoint}
+                lines={overlay.doc.lines}
+                idPrefix={`additional-path-${index}-point`}
+                color={overlay.color}
+                radiusScale={0.9}
+                opacity={0.8}
+                onPointDown={(address, _locked, event) => {
+                  if (editor.tool !== "select") return;
+                  event.stopPropagation();
+                  beginDrag({ kind: "overlay", index, address }, event);
+                }}
+              />
+            {/each}
+          {:else}
+            <PathStrokes
+              startPoint={doc.startPoint}
+              lines={doc.lines}
+              idPrefix="line"
+              opacity={settings.pathOpacity || 1}
+              selectedId={editor.selectedLineId}
+              {onSegmentDown}
+            />
+            {#each collisionMarks as mark, index (index)}
+              <path
+                d={polylinePath(mark.trace)}
+                fill="none"
+                stroke={COLLISION_COLOR}
+                stroke-width={LINE_WIDTH * 2.2}
+                stroke-linecap="round"
+                opacity={0.55}
+                pointer-events="none"
+              />
+              <path
+                d={polylinePath(mark.footprint, true)}
+                fill="none"
+                stroke={COLLISION_COLOR}
+                stroke-width={0.35}
+                stroke-dasharray="1 0.6"
+                pointer-events="none"
+              />
+            {/each}
             <PathMarkers
               startPoint={doc.startPoint}
-              segments={shownSegments}
-              showControlPoints={options.showControlPoints}
+              lines={doc.lines}
+              idPrefix="point"
+              selection={{
+                lineId: editor.selectedLineId,
+                index: editor.selectedPointIndex,
+              }}
+              showAll={settings.showAllPoints}
+              onPointDown={onProjectPointDown}
             />
-          </g>
-        </svg>
-      {/if}
+          {/if}
+        </g>
+      </svg>
 
       {#if !assetsReady}
         <FieldLoadingOverlay />
       {/if}
     </div>
   </div>
+
+  <PlaybackBar />
 </main>
+
+{#if menu}
+  <ContextMenu
+    x={menu.x}
+    y={menu.y}
+    entries={menuEntries}
+    onClose={() => (menu = null)}
+  />
+{/if}

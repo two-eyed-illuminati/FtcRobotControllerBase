@@ -242,6 +242,10 @@ export function createDefaultPiecewiseSegment(): PiecewiseHeadingSegment {
   };
 }
 
+export function createDefaultPiecewiseHeadingInterpolation(): PiecewiseHeadingInterpolation {
+  return { segments: [createDefaultPiecewiseSegment()] };
+}
+
 function normalizeSegment(
   segment: PiecewiseHeadingSegment,
 ): PiecewiseHeadingSegment {
@@ -265,10 +269,6 @@ function normalizeSegment(
       !!segment.continueFromPrevious,
     parameters,
   };
-}
-
-function createDefaultPiecewiseHeadingInterpolation(): PiecewiseHeadingInterpolation {
-  return { segments: [createDefaultPiecewiseSegment()] };
 }
 
 export function normalizePiecewiseHeadingInterpolation(
@@ -321,6 +321,68 @@ export function normalizePiecewiseHeadingInterpolation(
   repaired[repaired.length - 1].endProgress = 1;
 
   return { segments: repaired };
+}
+
+/**
+ * Reports what normalization had to repair. Takes the raw input: the
+ * normalized form always passes, since normalizing is what fixes these.
+ */
+export function validatePiecewiseHeadingInterpolation(
+  input?: PiecewiseHeadingInterpolation,
+): string | null {
+  const segments = input?.segments;
+  if (!segments?.length) {
+    return "Piecewise heading requires at least one segment; a default one is in use.";
+  }
+
+  const ordered = [...segments].sort(
+    (left, right) => left.startProgress - right.startProgress,
+  );
+
+  if (ordered[0].startProgress !== 0) {
+    return "The first segment must start at 0; it has been extended back.";
+  }
+
+  if (ordered[ordered.length - 1].endProgress !== 1) {
+    return "The final segment must end at 1; it has been extended forward.";
+  }
+
+  for (let index = 0; index < ordered.length; index += 1) {
+    const segment = ordered[index];
+    if (segment.endProgress <= segment.startProgress) {
+      return "Piecewise segments must have positive length; a segment has been resized.";
+    }
+
+    const parameters = segment.parameters || {};
+    if (
+      segment.interpolationType === "linear" &&
+      (parameters.startDeg === undefined || parameters.endDeg === undefined)
+    ) {
+      return "A linear segment is missing its start or end heading; 0 is in use.";
+    }
+
+    if (
+      segment.interpolationType === "constant" &&
+      parameters.degrees === undefined
+    ) {
+      return "A constant segment is missing its heading; 0 is in use.";
+    }
+
+    if (segment.interpolationType === "facing-point" && !parameters.point) {
+      return "A facing-point segment is missing its target; (0, 0) is in use.";
+    }
+
+    const next = ordered[index + 1];
+    if (next && segment.endProgress !== next.startProgress) {
+      return "Piecewise segments must not leave gaps or overlap; they have been closed up.";
+    }
+  }
+
+  return null;
+}
+
+export function degreesToRadians(degrees: number): number {
+  return (normalizeAngleDegrees(degrees) * Math.PI) / 180;
 }
 
 /** `progress` is arc-length completion, not the curve parameter. */
