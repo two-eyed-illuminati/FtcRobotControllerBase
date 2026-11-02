@@ -1,0 +1,28 @@
+{
+  "lsp": {
+    "jdtls": {
+      "settings": {
+        "jdk_auto_download": true
+      },
+      "initialization_options": {
+        "settings": {
+          "java": {
+            "import": {
+              "gradle": { "enabled": false },
+              "exclusions": [
+                "**/node_modules/**",
+                "**/.metadata/**",
+                "**/archetype-resources/**",
+                "**/META-INF/maven/**",
+                "**/.delta/**"
+              ]
+            },
+            "project": {
+              "resourceFilters": ["node_modules", "\\.git", "\\.delta"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

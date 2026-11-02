@@ -1,0 +1,40 @@
+allprojects {
+  afterEvaluate { project ->
+    if (project.path != ':TeamCode') return
+
+    project.tasks.register('zedClasspath') {
+      group = 'ide'
+      description = 'Writes Eclipse .project/.classpath at the repo root so jdtls can resolve Android and FTC classes'
+      def jars = project.configurations.debugRuntimeClasspath.incoming.artifactView {
+        attributes {
+          attribute(Attribute.of('artifactType', String), 'android-classes-jar')
+        }
+      }.files
+      def bootJars = project.android.bootClasspath
+      def rootDir = project.rootProject.projectDir
+      def sourceDirs = ['TeamCode/src/main/java', 'FtcRobotController/src/main/java']
+
+      doLast {
+        def entries = []
+        sourceDirs.each { entries << "<classpathentry kind=\"src\" path=\"${it}\"/>" }
+        entries << '<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-17/"/>'
+        (bootJars + jars.files).each { entries << "<classpathentry kind=\"lib\" path=\"${it.absolutePath}\"/>" }
+        entries << '<classpathentry kind="output" path="build/zed-bin"/>'
+
+        new File(rootDir, '.classpath').text = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<classpath>\n  ${entries.join('\n  ')}\n</classpath>\n"
+        new File(rootDir, '.project').text = '''<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+  <name>ftc</name>
+  <buildSpec>
+    <buildCommand><name>org.eclipse.jdt.core.javabuilder</name></buildCommand>
+  </buildSpec>
+  <natures>
+    <nature>org.eclipse.jdt.core.javanature</nature>
+  </natures>
+</projectDescription>
+'''
+        println "zedClasspath: wrote ${sourceDirs.size()} source dirs, ${bootJars.size()} boot jars, ${jars.files.size()} dependency jars to ${rootDir}/.classpath"
+      }
+    }
+  }
+}

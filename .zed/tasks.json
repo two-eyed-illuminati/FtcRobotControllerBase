@@ -1,0 +1,4 @@
+[
+  { "label": "Sloth Load", "command": "./gradlew :TeamCode:deploySloth" },
+  { "label": "Install Debug", "command": "./gradlew :TeamCode:removeSlothRemote :TeamCode:installDebug" }
+]
