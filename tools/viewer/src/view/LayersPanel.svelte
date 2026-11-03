@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, X } from "@lucide/svelte";
+  import { Download, Plus, X } from "@lucide/svelte";
   import { flattenToAtomicSegments } from "../utils/pathTraversal";
   import { AVAILABLE_FIELD_MAPS } from "../config/defaults";
   import { useFeed, useOptions } from "../state/viewer.svelte";
@@ -134,7 +134,7 @@
           class="flex h-7 cursor-pointer items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8"
         >
           <Plus class="size-4" />
-          Add run (.sim.json)
+          Add run (.sim.json, .trace.json)
           <input
             type="file"
             accept=".json,application/json"
@@ -143,6 +143,15 @@
             onchange={addFiles}
           />
         </label>
+        <button
+          type="button"
+          class="flex h-7 cursor-pointer items-center gap-2 rounded-md px-2 text-sm text-body transition hover:bg-body/8 disabled:cursor-wait disabled:opacity-60"
+          disabled={feed.fetchingRun}
+          onclick={() => feed.fetchLatestRun()}
+        >
+          <Download class="size-4" />
+          {feed.fetchingRun ? "Fetching..." : "Fetch latest run"}
+        </button>
         {#if feed.runError}
           <p class="px-2 pt-1 text-xs text-danger">{feed.runError}</p>
         {/if}

@@ -9,6 +9,7 @@ import {
   type SimData,
   type SimSample,
 } from "../sim/simData";
+import { parseRun } from "../sim/trace";
 
 export type FeedStatus = "loading" | "ok" | "error";
 
@@ -51,6 +52,7 @@ export class PathFeed {
   runs = $state.raw<LoadedRun[]>([]);
   /** Why the last loaded file was not added as a run. */
   runError = $state<string | null>(null);
+  fetchingRun = $state(false);
   private nextRunId = 1;
 
   async start() {
@@ -111,7 +113,7 @@ export class PathFeed {
   }
 
   addRun(label: string, text: string) {
-    const result = parseSim(text);
+    const result = parseRun(text);
     if (!result.ok) {
       this.runError = `${label}: ${result.error}`;
       console.error(`[viewer] run ${label} rejected: ${result.error}`);
@@ -124,6 +126,28 @@ export class PathFeed {
       `[viewer] added run ${run.id} "${label}": ${result.sim.samples.t.length} samples, ` +
         `${result.sim.duration.toFixed(2)} s; ${this.runs.length} runs loaded`,
     );
+  }
+
+  async fetchLatestRun() {
+    this.fetchingRun = true;
+    try {
+      const response = await fetch("/__trace/latest");
+      const message = await response.json();
+      if (!message.ok) {
+        this.runError = message.error;
+        console.error(`[viewer] fetch latest run failed: ${message.error}`);
+        return;
+      }
+      const pulledAt = new Intl.DateTimeFormat(undefined, {
+        timeStyle: "medium",
+      }).format(message.pulledAt);
+      this.addRun(`latest ${pulledAt}`, message.text);
+    } catch (error) {
+      this.runError = `Could not reach the viewer server: ${(error as Error).message}`;
+      console.error(`[viewer] ${this.runError}`);
+    } finally {
+      this.fetchingRun = false;
+    }
   }
 
   removeRun(id: number) {

@@ -111,7 +111,7 @@ export function parseSim(text: string): SimParse {
   };
 }
 
-function wrapAngle(angle: number) {
+export function wrapAngle(angle: number) {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
