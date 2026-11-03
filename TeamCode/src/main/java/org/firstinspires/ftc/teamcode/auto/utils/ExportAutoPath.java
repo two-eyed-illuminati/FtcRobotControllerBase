@@ -1,24 +1,42 @@
 package org.firstinspires.ftc.teamcode.auto.utils;
 
-import org.firstinspires.ftc.teamcode.auto.ExampleAuto;
+import com.pedropathing.follower.Follower;
+
 import org.firstinspires.ftc.teamcode.auto.utils.sim.PathSimulator;
 import org.firstinspires.ftc.teamcode.auto.utils.sim.SimResult;
 import org.firstinspires.ftc.teamcode.auto.utils.sim.SimRobot;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 // ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew :TeamCode:exportAutoPath --continuous
+// Optional arguments: <output .pp> <class in the auto package, default ExampleAuto>
 public final class ExportAutoPath {
+    private static final String AUTO_PACKAGE = "org.firstinspires.ftc.teamcode.auto";
+
     private ExportAutoPath() {}
 
     public static void main(String[] args) throws Exception {
         Path output = Paths.get(
                 args.length == 0 ? "TeamCode/build/exports/auto-path.pp" : args[0]);
 
-        export(ExampleAuto.createRoutine(null), output);
+        String autoName = args.length > 1 ? args[1] : "ExampleAuto";
+        System.out.println("Exporting " + AUTO_PACKAGE + "." + autoName);
+        export(createRoutine(autoName), output);
+    }
+
+    private static AutoBuilder createRoutine(String autoName) throws Exception {
+        Class<?> auto = Class.forName(AUTO_PACKAGE + "." + autoName);
+        Method factory = auto.getMethod("createRoutine", Follower.class);
+        try {
+            return (AutoBuilder) factory.invoke(null, (Object) null);
+        } catch (InvocationTargetException e) {
+            throw e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
+        }
     }
 
     public static void export(AutoBuilder auto, Path output) throws Exception {

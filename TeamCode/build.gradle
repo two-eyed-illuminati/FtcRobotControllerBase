@@ -85,6 +85,9 @@ afterEvaluate {
         workingDir = rootProject.projectDir
         if (project.hasProperty("ppOutput")) {
             args(project.property("ppOutput"))
+            if (project.hasProperty("ppClass")) {
+                args(project.property("ppClass"))
+            }
         }
     }
 }

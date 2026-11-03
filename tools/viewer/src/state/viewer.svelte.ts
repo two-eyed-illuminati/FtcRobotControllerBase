@@ -11,6 +11,20 @@ import {
 } from "../sim/simData";
 import { parseRun } from "../sim/trace";
 
+export type AutoInfo = {
+  name: string;
+  exportedAt: number | null;
+  stale: boolean;
+  failed: boolean;
+};
+
+export type AutosMessage = {
+  autos: AutoInfo[];
+  selected: string | null;
+  exporting: string | null;
+  locked: boolean;
+};
+
 export type FeedStatus = "loading" | "ok" | "error";
 
 type FeedMessage = (
@@ -53,12 +67,28 @@ export class PathFeed {
   /** Why the last loaded file was not added as a run. */
   runError = $state<string | null>(null);
   fetchingRun = $state(false);
+  autos = $state.raw<AutosMessage>({
+    autos: [],
+    selected: null,
+    exporting: null,
+    locked: false,
+  });
+  /** Why the last auto choice failed. */
+  autoError = $state<string | null>(null);
   private nextRunId = 1;
 
   async start() {
     import.meta.hot?.on("pp:update", (message: FeedMessage) =>
       this.apply(message),
     );
+    import.meta.hot?.on("autos:update", (message: AutosMessage) =>
+      this.applyAutos(message),
+    );
+    try {
+      this.applyAutos(await (await fetch("/__autos")).json());
+    } catch (error) {
+      console.error(`[viewer] could not load the auto list: ${String(error)}`);
+    }
     try {
       const response = await fetch("/__pp");
       this.apply(await response.json());
@@ -89,6 +119,30 @@ export class PathFeed {
     console.info(
       `[viewer] loaded ${message.file}: ${result.doc.lines.length} paths, ${message.text.length} bytes`,
     );
+  }
+
+  applyAutos(message: AutosMessage) {
+    this.autos = message;
+    console.info(
+      `[viewer] autos: ${message.autos.map((a) => a.name).join(", ") || "none"}; ` +
+        `selected ${message.selected ?? "none"}, exporting ${message.exporting ?? "nothing"}`,
+    );
+  }
+
+  async selectAuto(name: string) {
+    this.autoError = null;
+    try {
+      const response = await fetch("/__autos/select", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.error);
+      console.info(`[viewer] selected auto ${name}`);
+    } catch (error) {
+      this.autoError = `Could not select ${name}: ${String(error)}`;
+      console.error(`[viewer] ${this.autoError}`);
+    }
   }
 
   private applySim(text: string | null) {

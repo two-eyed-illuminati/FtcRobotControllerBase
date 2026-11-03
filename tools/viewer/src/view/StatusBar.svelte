@@ -3,6 +3,7 @@
   import { useFeed } from "../state/viewer.svelte";
   import IconButton from "../lib/components/ui/IconButton.svelte";
   import type { Theme } from "../state/theme.svelte";
+  import AutoPicker from "./AutoPicker.svelte";
 
   interface Props {
     theme: Theme;
@@ -22,6 +23,7 @@
     <span class="text-sm font-semibold whitespace-nowrap text-heading">
       Pedro Path Viewer
     </span>
+    <AutoPicker />
     <span class="truncate font-mono text-xs text-body" title={feed.file}>
       {feed.file}
     </span>
