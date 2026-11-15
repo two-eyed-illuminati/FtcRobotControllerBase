@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.utils.pedro.procedures;
 
+import com.pedropathing.drivetrain.Drivetrain;
 import com.pedropathing.math.Pose;
 import com.pedropathing.revhub.localizers.PinpointConfig;
 import com.pedropathing.revhub.localizers.PinpointLocalizer;
@@ -7,9 +8,11 @@ import com.pedropathing.tuning.autotune.Inputs;
 import com.pedropathing.tuning.autotune.Procedure;
 import com.pedropathing.tuning.autotune.TuningOpMode;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 import java.util.*;
+import java.util.function.Function;
 
 public class PinpointTuner extends Procedure {
     enum PodType {
@@ -17,8 +20,15 @@ public class PinpointTuner extends Procedure {
         FOUR_BAR,
         CUSTOM
     }
+    private final Function<HardwareMap, Drivetrain> drivetrainFactory;
+
     public PinpointTuner() {
+        this(null);
+    }
+
+    public PinpointTuner(Function<HardwareMap, Drivetrain> drivetrainFactory) {
         super("Pinpoint Tuner", "A procedure for tuning the Pinpoint localizer.");
+        this.drivetrainFactory = drivetrainFactory;
     }
 
     @Override
@@ -40,7 +50,19 @@ public class PinpointTuner extends Procedure {
         boolean forwardPodReversed = runOpMode(new PinpointForwardDirection(pinpointName.get(), podType.get(), customPodScalar));
         boolean strafePodReversed = runOpMode(new PinpointStrafeDirection(pinpointName.get(), podType.get(), customPodScalar));
 
-        List<Double> offsets = runOpMode(new PinpointOffsets(pinpointName.get(), podType.get(), customPodScalar, forwardPodReversed, strafePodReversed));
+        List<Double> offsets;
+        if (drivetrainFactory == null) {
+            offsets = runOpMode(new PinpointOffsets(pinpointName.get(), podType.get(), customPodScalar, forwardPodReversed, strafePodReversed));
+        } else {
+            Inputs inputsSpin = inputs("Offsets Spin", "Set how the robot will spin in place to identify the offsets");
+            Inputs.Field<Double> turnPower = inputsSpin.d("Turn Power").min(0.1).max(1.0).withDefault(0.3);
+            Inputs.Field<Integer> turns = inputsSpin.i("Whole Turns").min(1).max(10).withDefault(3);
+            awaitInputs(inputsSpin);
+
+            PinpointSpinOffsets.Result spin = runOpMode(new PinpointSpinOffsets(pinpointName.get(), podType.get(), customPodScalar, forwardPodReversed, strafePodReversed, drivetrainFactory, turnPower.get(), turns.get()));
+            offsets = spin.offsets();
+            resultSpinFit(spin);
+        }
 
         result("name", pinpointName.get());
 
@@ -66,6 +88,16 @@ public class PinpointTuner extends Procedure {
                 "    c.globalDistanceUnit.set(DistanceUnit.INCH);\n" +
                 "    c.offsetUnits.set(DistanceUnit.INCH);\n" +
                 "});");
+    }
+
+    private void resultSpinFit(PinpointSpinOffsets.Result spin) {
+        result("fitResidualRms", String.format(Locale.US, "%.4f in (%.1f%% of step size)", spin.rmsResidual, spin.relativeResidual * 100));
+        result("fitSamples", spin.sampleCount);
+        result("totalTurn", String.format(Locale.US, "%.1f deg", Math.toDegrees(spin.totalTurnRadians)));
+        result("finalPose", spin.finalPose);
+        for (int i = 0; i < spin.warnings.size(); i++) {
+            result("warning" + (i + 1), spin.warnings.get(i));
+        }
     }
 }
 

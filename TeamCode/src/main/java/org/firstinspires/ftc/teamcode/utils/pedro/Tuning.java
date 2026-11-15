@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.utils.pedro;
 
+import com.pedropathing.revhub.drivetrains.Mecanum;
 import com.pedropathing.tuning.autotune.Procedure;
 import com.pedropathing.tuning.autotune.Tuner;
 
@@ -14,6 +15,6 @@ public class Tuning {
     }
     @Tuner
     public static Procedure pinpointTuner() {
-        return new PinpointTuner();
+        return new PinpointTuner(hardwareMap -> new Mecanum(hardwareMap, Constants.drivetrainConfig));
     }
 }
