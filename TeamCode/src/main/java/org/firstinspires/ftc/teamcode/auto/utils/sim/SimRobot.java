@@ -2,8 +2,6 @@ package org.firstinspires.ftc.teamcode.auto.utils.sim;
 
 import com.pedropathing.algorithm.ForesightConfig;
 import com.pedropathing.controllers.Controller;
-import com.pedropathing.math.Matrix;
-import com.pedropathing.math.Vector2D;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -13,27 +11,11 @@ import java.util.Map;
  * - top speed and natural deceleration are the config values;
  * - the drive time constant follows from the tuner's gain formula kP = tau * alpha^2 / K;
  * - the turn axis has no tuned top speed, so TURN_TERMINAL_VELOCITY and TURN_FRICTION are assumed.
- * create(config) fits to the given config. create() uses the built-in default config, which is the tuned one
- * from the biobuzz project (biobuzz/.../utils/pedro/Constants.java, commit 5184a2e).
+ * create(config) fits to the given config; pass Constants.foresightConfig to simulate the robot the follower drives.
  */
 public final class SimRobot {
-  static final double FORWARD_TERMINAL_VELOCITY = 72.37704404328076;
-  static final double STRAFE_TERMINAL_VELOCITY = 54.82465388665514;
-  static final double FORWARD_NATURAL_DECELERATION = 28.496999108568463;
-  static final double STRAFE_NATURAL_DECELERATION = 82.80357292419318;
-  static final double FORWARD_PRIMARY_KP = 0.46143747753891484;
-  static final double FORWARD_SECONDARY_KP = 0.17048881811414734;
-  static final double STRAFE_PRIMARY_KP = 0.7421916068070539;
-  static final double STRAFE_SECONDARY_KP = 0.2742199669902264;
-  static final double HEADING_KP = 7.394465419100555;
-  static final double TRANSLATIONAL_SWITCH_DISTANCE = 2.5;
   static final double TRANSLATIONAL_ALPHA_LARGE = 10.2;
   static final double HEADING_ALPHA = 18.25;
-  static final double COAST_KV = 0.013828078266724485;
-  static final double BRAKE_KV = 0.011753866526715812;
-  static final double[] HEADING_BRAKING = {0.057710307439896885, 0.007305738388892705};
-  static final double[] FORWARD_BRAKING = {0.10604301225944404, 0.0017051540772801824};
-  static final double[] STRAFE_BRAKING = {0.07235600480491211, 0.0015567358791152273};
 
   static final double TURN_TERMINAL_VELOCITY = 4.5;
   static final double TURN_FRICTION = 5;
@@ -77,35 +59,6 @@ public final class SimRobot {
 
   public static SimRobot create(ForesightConfig config) {
     return new SimRobot(config, "supplied ForesightConfig");
-  }
-
-  public static SimRobot create() {
-    return new SimRobot(defaultConfig(),
-        "built-in default: biobuzz tuned ForesightConfig (Constants.java, commit 5184a2e)");
-  }
-
-  private static ForesightConfig defaultConfig() {
-    Controller forwardPrimary = Controller.proportional(FORWARD_PRIMARY_KP);
-    Controller forwardSecondary = Controller.proportional(FORWARD_SECONDARY_KP);
-    Controller strafePrimary = Controller.proportional(STRAFE_PRIMARY_KP);
-    Controller strafeSecondary = Controller.proportional(STRAFE_SECONDARY_KP);
-
-    return new ForesightConfig(c -> {
-      c.forwardTranslational.set(
-          Controller.piecewise(forwardSecondary).put(TRANSLATIONAL_SWITCH_DISTANCE, forwardPrimary));
-      c.strafeTranslational.set(
-          Controller.piecewise(strafeSecondary).put(TRANSLATIONAL_SWITCH_DISTANCE, strafePrimary));
-      c.coast.set(Controller.proportionalFeedforward(COAST_KV));
-      c.brake.set(Controller.proportionalFeedforward(BRAKE_KV));
-      c.headingFeedback.set(Controller.proportional(HEADING_KP));
-      c.headingBrakeCoefficients.set(Vector2D.cartesian(HEADING_BRAKING[0], HEADING_BRAKING[1]));
-      c.linearBrakeCoefficients.set(Matrix.diag(FORWARD_BRAKING[0], STRAFE_BRAKING[0]));
-      c.quadraticBrakeCoefficients.set(Matrix.diag(FORWARD_BRAKING[1], STRAFE_BRAKING[1]));
-      c.maxAchievableForwardVelocity.set(FORWARD_TERMINAL_VELOCITY);
-      c.maxAchievableStrafeVelocity.set(STRAFE_TERMINAL_VELOCITY);
-      c.naturalForwardDeceleration.set(FORWARD_NATURAL_DECELERATION);
-      c.naturalStrafeDeceleration.set(STRAFE_NATURAL_DECELERATION);
-    });
   }
 
   private static double proportionalGain(Controller controller, double error) {

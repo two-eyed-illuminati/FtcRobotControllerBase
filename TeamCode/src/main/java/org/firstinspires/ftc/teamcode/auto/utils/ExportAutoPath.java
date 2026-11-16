@@ -5,6 +5,7 @@ import com.pedropathing.follower.Follower;
 import org.firstinspires.ftc.teamcode.auto.utils.sim.PathSimulator;
 import org.firstinspires.ftc.teamcode.auto.utils.sim.SimResult;
 import org.firstinspires.ftc.teamcode.auto.utils.sim.SimRobot;
+import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -58,7 +59,7 @@ public final class ExportAutoPath {
     private static void writeSim(AutoBuilder auto, File simOutput) throws Exception {
         String json;
         try {
-            SimRobot robot = SimRobot.create();
+            SimRobot robot = SimRobot.create(Constants.foresightConfig);
             long started = System.nanoTime();
             SimResult result = new PathSimulator(robot).simulate(auto.startPose, auto.paths);
             System.out.printf("Simulated %d paths: %.2f s, %d samples, max %.1f in/s, end speed %.2f in/s,"

@@ -9,6 +9,7 @@ import com.pedropathing.paths.Path;
 
 import org.firstinspires.ftc.teamcode.auto.utils.AutoBuilder;
 import org.firstinspires.ftc.teamcode.auto.utils.ExportAutoPath;
+import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
 
 import java.io.File;
 import java.util.Arrays;
@@ -24,7 +25,7 @@ public final class SimCheck {
   private SimCheck() {}
 
   public static void main(String[] args) throws Exception {
-    SimRobot robot = SimRobot.create();
+    SimRobot robot = SimRobot.create(Constants.foresightConfig);
     Pose a = new Pose(0, 0, 0);
     Pose b = new Pose(48, 0, 0);
     Pose c = new Pose(96, 0, 0);
