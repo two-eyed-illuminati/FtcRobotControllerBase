@@ -1,4 +1,4 @@
 [
-  { "label": "Sloth Load", "command": "./gradlew :TeamCode:deploySloth" },
-  { "label": "Install Debug", "command": "./gradlew :TeamCode:removeSlothRemote :TeamCode:installDebug" }
+  { "label": "Sloth Load", "command": "tools/zed/adb-target.sh :TeamCode:deploySloth" },
+  { "label": "Install Debug", "command": "tools/zed/adb-target.sh :TeamCode:removeSlothRemote :TeamCode:installDebug" }
 ]
