@@ -1,0 +1,9 @@
+dist
+out
+node_modules
+public
+test/golden
+pnpm-lock.yaml
+bun.lock
+package-lock.json
+*.min.js
