@@ -31,7 +31,7 @@ public final class PathSimulator {
   public SimResult simulate(Pose start, List<Path> paths) {
     SimResult result = new SimResult(CONTROL_DT, robot.assumptions);
 
-    SimPhysics physics = new SimPhysics(SimRobot.FORWARD, SimRobot.STRAFE, SimRobot.TURN);
+    SimPhysics physics = new SimPhysics(robot.forward, robot.strafe, robot.turn);
     SimDrivetrain drivetrain = new SimDrivetrain();
     Foresight foresight = new Foresight(robot.config);
     Follower follower = new Follower(new SimLocalizer(physics), drivetrain, foresight);

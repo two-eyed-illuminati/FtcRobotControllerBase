@@ -9,11 +9,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The robot the simulation runs. The ForesightConfig is the tuned one from the biobuzz project
- * (biobuzz/.../utils/pedro/Constants.java, commit 5184a2e). The physics is fitted to that config:
+ * The robot the simulation runs. The physics is fitted to a ForesightConfig:
  * - top speed and natural deceleration are the config values;
  * - the drive time constant follows from the tuner's gain formula kP = tau * alpha^2 / K;
  * - the turn axis has no tuned top speed, so TURN_TERMINAL_VELOCITY and TURN_FRICTION are assumed.
+ * create(config) fits to the given config. create() uses the built-in default config, which is the tuned one
+ * from the biobuzz project (biobuzz/.../utils/pedro/Constants.java, commit 5184a2e).
  */
 public final class SimRobot {
   static final double FORWARD_TERMINAL_VELOCITY = 72.37704404328076;
@@ -39,27 +40,57 @@ public final class SimRobot {
   static final double TUNER_BRAKING_POWER = 0.001;
   static final double BRAKING_CHECK_VELOCITY = 30;
 
-  public static SimAxis FORWARD = SimAxis.fit(FORWARD_TERMINAL_VELOCITY,
-      timeConstant(FORWARD_PRIMARY_KP, FORWARD_TERMINAL_VELOCITY), FORWARD_NATURAL_DECELERATION);
-  public static SimAxis STRAFE = SimAxis.fit(STRAFE_TERMINAL_VELOCITY,
-      timeConstant(STRAFE_PRIMARY_KP, STRAFE_TERMINAL_VELOCITY), STRAFE_NATURAL_DECELERATION);
-  public static SimAxis TURN = SimAxis.fit(TURN_TERMINAL_VELOCITY,
-      HEADING_KP * TURN_TERMINAL_VELOCITY / (HEADING_ALPHA * HEADING_ALPHA), TURN_FRICTION);
+  static final double PROPORTIONAL_PROBE_ERROR = 10;
 
   public final ForesightConfig config;
+  public final SimAxis forward;
+  public final SimAxis strafe;
+  public final SimAxis turn;
   public final Map<String, Object> assumptions = new LinkedHashMap<>();
 
-  private SimRobot(ForesightConfig config) {
+  private final double coastKv;
+  private final double brakeKv;
+  private final double headingKp;
+  private final double[] forwardBraking;
+  private final double[] strafeBraking;
+
+  private SimRobot(ForesightConfig config, String source) {
     this.config = config;
+    double forwardTop = config.maxAchievableForwardVelocity.get();
+    double strafeTop = config.maxAchievableStrafeVelocity.get();
+    double forwardKp = proportionalGain(config.forwardTranslational.get(), PROPORTIONAL_PROBE_ERROR);
+    double strafeKp = proportionalGain(config.strafeTranslational.get(), PROPORTIONAL_PROBE_ERROR);
+    headingKp = proportionalGain(config.headingFeedback.get(), 1);
+    coastKv = config.coast.get().calculate(1, 0);
+    brakeKv = config.brake.get().calculate(1, 0);
+    forwardBraking = brakingCoefficients(config, 0);
+    strafeBraking = brakingCoefficients(config, 1);
+
+    forward = SimAxis.fit(forwardTop, timeConstant(forwardKp, forwardTop),
+        config.naturalForwardDeceleration.get());
+    strafe = SimAxis.fit(strafeTop, timeConstant(strafeKp, strafeTop),
+        config.naturalStrafeDeceleration.get());
+    turn = SimAxis.fit(TURN_TERMINAL_VELOCITY,
+        headingKp * TURN_TERMINAL_VELOCITY / (HEADING_ALPHA * HEADING_ALPHA), TURN_FRICTION);
+    describe(source);
+  }
+
+  public static SimRobot create(ForesightConfig config) {
+    return new SimRobot(config, "supplied ForesightConfig");
   }
 
   public static SimRobot create() {
+    return new SimRobot(defaultConfig(),
+        "built-in default: biobuzz tuned ForesightConfig (Constants.java, commit 5184a2e)");
+  }
+
+  private static ForesightConfig defaultConfig() {
     Controller forwardPrimary = Controller.proportional(FORWARD_PRIMARY_KP);
     Controller forwardSecondary = Controller.proportional(FORWARD_SECONDARY_KP);
     Controller strafePrimary = Controller.proportional(STRAFE_PRIMARY_KP);
     Controller strafeSecondary = Controller.proportional(STRAFE_SECONDARY_KP);
 
-    ForesightConfig config = new ForesightConfig(c -> {
+    return new ForesightConfig(c -> {
       c.forwardTranslational.set(
           Controller.piecewise(forwardSecondary).put(TRANSLATIONAL_SWITCH_DISTANCE, forwardPrimary));
       c.strafeTranslational.set(
@@ -75,23 +106,29 @@ public final class SimRobot {
       c.naturalForwardDeceleration.set(FORWARD_NATURAL_DECELERATION);
       c.naturalStrafeDeceleration.set(STRAFE_NATURAL_DECELERATION);
     });
-
-    SimRobot robot = new SimRobot(config);
-    robot.describe();
-    return robot;
   }
 
-  private void describe() {
-    assumptions.put("source", "biobuzz tuned ForesightConfig (Constants.java, commit 5184a2e)");
+  private static double proportionalGain(Controller controller, double error) {
+    return controller.calculate(0, error) / error;
+  }
+
+  private static double[] brakingCoefficients(ForesightConfig config, int axis) {
+    return new double[] {
+        config.linearBrakeCoefficients.get().get(axis, axis),
+        config.quadraticBrakeCoefficients.get().get(axis, axis)};
+  }
+
+  private void describe(String source) {
+    assumptions.put("source", source);
     assumptions.put("physicsModel", "v approaches power * topSpeed with the drive time constant; friction only while slowing; power 0 floats");
-    describeAxis("forward", FORWARD, FORWARD_BRAKING);
-    describeAxis("strafe", STRAFE, STRAFE_BRAKING);
-    assumptions.put("turnMaxVelocity (assumed)", TURN.maxVelocity);
-    assumptions.put("turnStallAcceleration", TURN.stallAcceleration);
-    assumptions.put("turnFriction (assumed)", TURN.friction);
-    assumptions.put("coastKV", COAST_KV);
-    assumptions.put("brakeKV", BRAKE_KV);
-    assumptions.put("headingKP", HEADING_KP);
+    describeAxis("forward", forward, forwardBraking);
+    describeAxis("strafe", strafe, strafeBraking);
+    assumptions.put("turnMaxVelocity (assumed)", turn.maxVelocity);
+    assumptions.put("turnStallAcceleration", turn.stallAcceleration);
+    assumptions.put("turnFriction (assumed)", turn.friction);
+    assumptions.put("coastKV", coastKv);
+    assumptions.put("brakeKV", brakeKv);
+    assumptions.put("headingKP", headingKp);
     assumptions.put("maxBrakingPower", config.maxBrakingPower.get());
     assumptions.put("brakeAggression", config.brakeAggression.get());
     assumptions.put("brakeAtEnd", config.brakeAtEnd.get());
