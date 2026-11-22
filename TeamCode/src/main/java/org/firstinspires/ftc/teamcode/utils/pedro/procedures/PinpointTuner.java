@@ -176,6 +176,9 @@ class PinpointForwardDirection extends TuningOpMode<Boolean> {
         localizer.update();
 
         while (!isStopRequested()) {
+            if(Math.abs(localizer.pose().x()) > 5){
+              return localizer.pose().x() < 0;
+            }
             localizer.update();
         }
 
@@ -220,6 +223,9 @@ class PinpointStrafeDirection extends TuningOpMode<Boolean> {
         localizer.setPose(Pose.zero());
         localizer.update();
         while (!isStopRequested()) {
+            if(Math.abs(localizer.pose().y()) > 5){
+              return localizer.pose().y() < 0;
+            }
             localizer.update();
         }
 
