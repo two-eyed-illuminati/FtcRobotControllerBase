@@ -14,7 +14,7 @@ public class MainTeleOp extends TeleOpMode {
     double heading = Robot.follower.pose().heading();
 
     Robot.follower.manual(ManualDrive.fieldCentric(
-      -gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x,
+      -gamepad1.left_stick_y, -gamepad1.left_stick_x, -gamepad1.right_stick_x,
       heading, -driverForward));
   }
 }
