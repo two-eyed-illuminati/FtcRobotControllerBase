@@ -67,7 +67,7 @@ public class AutoBuilder {
 
   public enum Shape { LINE, CURVE }
 
-  public static Pose CENTER = new Pose(72.0, 72.0, 0);
+  public static Pose CENTER = new Pose(70.75, 70.75, 0);
 
   private static double angleDistance(double a, double b) {
     return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));

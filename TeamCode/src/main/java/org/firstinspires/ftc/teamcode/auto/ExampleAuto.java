@@ -18,11 +18,11 @@ public final class ExampleAuto extends AutoOpMode {
     }
 
     public static AutoBuilder createRoutine(Follower follower) {
-        Pose start = Robot.START_POSE_CORNER;
+        Pose start = Robot.DEFAULT_START_POSE;
 
         // Example of a "Tweak" - meant to be used for last-minute emergency tweaks to auto
         AutoBuilder.GoToCenter gtcConfig = new AutoBuilder.GoToCenter();
-        gtcConfig.endPose = new Pose(72, 72, Math.PI/2);
+        gtcConfig.endPose = new Pose(70.75, 70.75, Math.PI/2);
 
         return new AutoBuilder(follower)
                 .startAt(start)

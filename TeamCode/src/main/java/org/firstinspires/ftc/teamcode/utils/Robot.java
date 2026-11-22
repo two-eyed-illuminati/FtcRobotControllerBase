@@ -24,7 +24,7 @@ import java.util.List;
 public class Robot{
   //Constants
   public static double DRIVER_FORWARD_HEADING = Math.PI;
-  public static Pose START_POSE_CORNER = new Pose(0, 0, 0);
+  public static Pose DEFAULT_START_POSE = new Pose(110, 132, 3 * Math.PI / 2);
 
   //Mechanisms, IMU, etc.
   public static Follower follower;
@@ -32,7 +32,7 @@ public class Robot{
   private static List<LynxModule> hubs = new ArrayList<>();
   private static HardwareMap hardwareMap;
   private static Telemetry dsTelemetry;
-  
+
   //Stored Values
   public enum Alliance{
     BLUE, RED
@@ -44,7 +44,7 @@ public class Robot{
   public static Pose toField(Pose bluePose){
     PoseFactory factory = PoseFactory.radians();
     if(alliance == Alliance.RED){
-      factory = factory.mirrorX(72);
+      factory = factory.rotateAround(70.75, 70.75, Math.PI);
     }
     return factory.of(bluePose.x(), bluePose.y(), bluePose.heading());
   }
@@ -80,18 +80,26 @@ public class Robot{
       init(hardwareMap, dsTelemetry);
     }
 
+    boolean bluePressed = gamepad.xWasPressed();
+    boolean redPressed = gamepad.bWasPressed();
+
     if(initialized){
       telemetry.addLine("Robot using previous initialization state");
+      telemetry.addData("Pose", pose);
       telemetry.addLine("Press LB+RB to re-initialize");
     }
     else{
       telemetry.addLine("Robot successfully initialized");
       telemetry.addLine("Press X for BLUE alliance, B for RED alliance");
-      if(gamepad.x){
+      if(bluePressed){
         alliance = Alliance.BLUE;
       }
-      else if(gamepad.b){
+      else if(redPressed){
         alliance = Alliance.RED;
+      }
+      Pose startPose = toField(DEFAULT_START_POSE);
+      if(follower != null){
+        follower.setPose(startPose);
       }
     }
 
