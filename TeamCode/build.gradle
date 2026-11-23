@@ -38,6 +38,8 @@ android {
     packagingOptions {
         jniLibs.useLegacyPackaging true
     }
+
+    sourceSets.main.resources.srcDir(layout.buildDirectory.dir("generated/optimizedPaths"))
 }
 
 repositories {
@@ -90,4 +92,25 @@ afterEvaluate {
             }
         }
     }
+
+    def optimizedPathsDir = layout.buildDirectory.dir("generated/optimizedPaths").get().asFile
+    def compiledClasses = tasks.named("compileDebugJavaWithJavac").get().destinationDirectory
+    def optimizeAutoPaths = tasks.register("optimizeAutoPaths", JavaExec) {
+        dependsOn("compileDebugJavaWithJavac")
+        description = "Optimizes autonomous paths on this computer and packs them into the APK"
+        mainClass = "org.firstinspires.ftc.teamcode.auto.utils.OptimizeAutoPaths"
+        classpath = files(compiledClasses) + debugRuntimeJars
+        args(compiledClasses.get().asFile, new File(optimizedPathsDir, "optimized-paths.properties"))
+        outputs.dir(optimizedPathsDir)
+    }
+    tasks.named("processDebugJavaRes") { dependsOn(optimizeAutoPaths) }
+
+    // Sloth jars hold only dex code, so Sloth deploys push the paths file next to them
+    def pushOptimizedPaths = tasks.register("pushOptimizedPaths", Exec) {
+        dependsOn(optimizeAutoPaths)
+        description = "Pushes optimized auto paths to the robot for Sloth deploys"
+        executable = androidComponents.sdkComponents.adb.get().asFile
+        args("push", new File(optimizedPathsDir, "optimized-paths.properties"), "/sdcard/FIRST/optimized-paths.properties")
+    }
+    tasks.named("deploySloth") { dependsOn(pushOptimizedPaths) }
 }

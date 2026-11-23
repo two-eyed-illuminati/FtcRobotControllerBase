@@ -26,7 +26,8 @@ public final class ExportAutoPath {
                 args.length == 0 ? "TeamCode/build/exports/auto-path.pp" : args[0]);
 
         String autoName = args.length > 1 ? args[1] : "ExampleAuto";
-        System.out.println("Exporting " + AUTO_PACKAGE + "." + autoName);
+        System.out.println("Exporting " + AUTO_PACKAGE + "." + autoName + " with optimized paths");
+        OptimizedPaths.optimizer = OptimizeAutoPaths::optimize;
         export(createRoutine(autoName), output);
     }
 

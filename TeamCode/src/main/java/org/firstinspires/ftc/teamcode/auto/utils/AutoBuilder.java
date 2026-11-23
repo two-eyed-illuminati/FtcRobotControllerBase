@@ -44,6 +44,11 @@ public class AutoBuilder {
     return this;
   }
 
+  /** Drives to bluePose along a path optimized at build time; see OptimizedPaths. */
+  public AutoBuilder optimizedPath(Pose bluePose) {
+    return followPath(OptimizedPaths.get(currentPose, Robot.toField(bluePose)));
+  }
+
   public AutoBuilder then(Command command) {
     commands.add(command);
     return this;
