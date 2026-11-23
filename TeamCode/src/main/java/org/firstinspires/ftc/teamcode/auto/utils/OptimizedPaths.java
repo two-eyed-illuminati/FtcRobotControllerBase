@@ -1,10 +1,13 @@
 package org.firstinspires.ftc.teamcode.auto.utils;
 
-import static com.pedropathing.api.Paths.curve;
-import static com.pedropathing.api.Paths.line;
-
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
+import com.skeletonarmy.marrow.weaver.PathConfig;
+import com.skeletonarmy.marrow.weaver.Weaver;
+import com.skeletonarmy.marrow.zones.CircleZone;
+import com.skeletonarmy.marrow.zones.Point;
+import com.skeletonarmy.marrow.zones.PolygonZone;
+import com.skeletonarmy.marrow.zones.Zone;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,12 +16,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.function.BiFunction;
 
 /**
- * Cubic paths optimized on the computer by the optimizeAutoPaths Gradle task.
+ * Paths optimized on the computer (PathRefiner) by the optimizeAutoPaths Gradle task.
  * The task writes them to a Java resource that ships inside the APK; Sloth deploys also push the file to the hub.
  */
 public final class OptimizedPaths {
@@ -26,8 +31,29 @@ public final class OptimizedPaths {
   /** Pushed by the pushOptimizedPaths Gradle task, because Sloth deploys do not update APK resources. */
   private static final File SLOTH_FILE = new File("/sdcard/FIRST/" + RESOURCE);
 
-  /** Set only by OptimizeAutoPaths: returns the inner control points {x1, y1, x2, y2} for a missing path. */
-  static BiFunction<Pose, Pose, double[]> optimizer;
+  private static final double FIELD_SIZE = 141.5;
+  private static final double HIVE_SUPPORT_SPACING = 49.46;
+  private static final double HIVE_SUPPORT_LENGTH = 38.95;
+  private static final double HIVE_SUPPORT_THICKNESS = 2;
+  private static final double FLOWER_RADIUS = 3;
+  private static final double FLOWER_CENTER_FROM_WALL = 4;
+
+  /** BioBuzz field obstacles in field coordinates. The optimizer avoids them, and the hub needs them to rebuild Weaver routes. */
+  public static final List<Zone> obstacles = Arrays.asList(
+    new PolygonZone(new Point(FIELD_SIZE / 2 - HIVE_SUPPORT_SPACING / 2, FIELD_SIZE / 2), HIVE_SUPPORT_THICKNESS, HIVE_SUPPORT_LENGTH),
+    new PolygonZone(new Point(FIELD_SIZE / 2 + HIVE_SUPPORT_SPACING / 2, FIELD_SIZE / 2), HIVE_SUPPORT_THICKNESS, HIVE_SUPPORT_LENGTH),
+    new CircleZone(new Point(48, FIELD_SIZE - FLOWER_CENTER_FROM_WALL), FLOWER_RADIUS),
+    new CircleZone(new Point(FIELD_SIZE - FLOWER_CENTER_FROM_WALL, 96), FLOWER_RADIUS),
+    new CircleZone(new Point(FLOWER_CENTER_FROM_WALL, 48), FLOWER_RADIUS),
+    new CircleZone(new Point(96, FLOWER_CENTER_FROM_WALL), FLOWER_RADIUS)
+  );
+
+  static {
+    Weaver.setConfig(new PathConfig().intakeWidth(8.0));
+  }
+
+  /** Set only on the computer (OptimizeAutoPaths, ExportAutoPath): optimizes a missing path. */
+  static BiFunction<Pose, Pose, RefinedPath> optimizer;
 
   private static Properties stored;
 
@@ -35,28 +61,18 @@ public final class OptimizedPaths {
 
   public static Path get(Pose start, Pose end) {
     String key = key(start, end);
-    String controls = stored().getProperty(key);
-    if (controls == null && optimizer != null) {
-      double[] optimized = optimizer.apply(start, end);
-      controls = String.format(Locale.ROOT, "%.3f %.3f %.3f %.3f",
-        optimized[0], optimized[1], optimized[2], optimized[3]);
-      stored.setProperty(key, controls);
-    } else if (controls == null) {
+    String encoded = stored().getProperty(key);
+    if (encoded == null && optimizer != null) {
+      encoded = optimizer.apply(start, end).encode();
+      stored.setProperty(key, encoded);
+    } else if (encoded == null) {
       System.out.println("OptimizedPaths: miss for " + key + " among " + stored.size()
-        + " stored paths, driving a straight line. Rebuild the APK to optimize it.");
-      return line(start, end).linear(start, end);
+        + " stored paths, driving the default Weaver route. Rebuild the APK to optimize it.");
+      encoded = RefinedPath.weaver(false).encode();
     } else {
-      System.out.println("OptimizedPaths: hit for " + key);
+      System.out.println("OptimizedPaths: hit for " + key + ": " + encoded.split(" ")[0]);
     }
-    String[] values = controls.split(" ");
-    double[] parsed = new double[values.length];
-    for (int i = 0; i < values.length; i++) parsed[i] = Double.parseDouble(values[i]);
-    return cubic(start, end, parsed);
-  }
-
-  static Path cubic(Pose start, Pose end, double[] controls) {
-    return curve(start, new Pose(controls[0], controls[1]), new Pose(controls[2], controls[3]), end)
-      .linear(start, end);
+    return RefinedPath.decode(encoded).toPath(start, end, obstacles);
   }
 
   static void save(File file) throws IOException {

@@ -26,6 +26,10 @@ public final class ExampleAuto extends AutoOpMode {
 
         return new AutoBuilder(follower)
                 .startAt(start)
-                .goToCenter(gtcConfig);
+                .optimizedPath(gtcConfig.endPose)
+                .optimizedPath(new Pose(30, 110, Math.PI))
+                .optimizedPath(new Pose(50, 30, Math.PI))
+                .optimizedPath(new Pose(50, 15, Math.PI))
+                .optimizedPath(new Pose(120, 15, Math.PI));
     }
 }
