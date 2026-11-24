@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.auto.utils;
 import com.pedropathing.follower.Follower;
 
 import org.firstinspires.ftc.teamcode.utils.Robot;
+import org.firstinspires.ftc.teamcode.utils.WeaverConfig;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -18,7 +19,7 @@ public final class OptimizeAutoPaths {
     File classes = new File(args[0]);
     File output = new File(args[1]);
     System.out.printf("Optimizing auto paths in %s around %d obstacles%n",
-      AUTO_PACKAGE, OptimizedPaths.obstacles.size());
+      AUTO_PACKAGE, WeaverConfig.FIELD_OBSTACLES.size());
     OptimizedPaths.optimizer = PathRefiner::refine;
 
     File autoDir = new File(classes, AUTO_PACKAGE.replace('.', '/'));
