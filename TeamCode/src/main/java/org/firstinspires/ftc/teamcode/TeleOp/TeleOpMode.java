@@ -8,7 +8,7 @@ import org.firstinspires.ftc.teamcode.utils.Robot;
 public abstract class TeleOpMode extends OpMode {
   @Override
   public final void init() {
-    Robot.init(hardwareMap, telemetry);
+    Robot.init(hardwareMap, telemetry, getClass().getSimpleName());
   }
 
   @Override
@@ -27,6 +27,7 @@ public abstract class TeleOpMode extends OpMode {
   @Override
   public final void stop() {
     Scheduler.reset();
+    Robot.closeRunLog();
   }
 
   protected void onLoop() {

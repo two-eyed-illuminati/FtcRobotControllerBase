@@ -9,8 +9,11 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.utils.log.RecordingTelemetry;
+import org.firstinspires.ftc.teamcode.utils.log.RunLog;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
 
 import java.util.ArrayList;
@@ -24,6 +27,8 @@ public class RobotBase{
   private static List<LynxModule> hubs = new ArrayList<>();
   private static HardwareMap hardwareMap;
   private static Telemetry dsTelemetry;
+  private static String opModeName;
+  private static RunLog runLog;
   private static RobotBase game = new RobotBase();
 
   public enum Alliance{
@@ -37,17 +42,25 @@ public class RobotBase{
     game = gameRobot;
   }
 
-  public static void init(HardwareMap hardwareMap, Telemetry dsTelemetry){
+  public static void init(HardwareMap hardwareMap, Telemetry dsTelemetry, String opModeName){
     RobotBase.hardwareMap = hardwareMap;
     RobotBase.dsTelemetry = dsTelemetry;
+    RobotBase.opModeName = opModeName;
     Scheduler.reset();
 
-    telemetry = new MultipleTelemetry( //apparently needs to reinit each time opmode inits
+    closeRunLog();
+    runLog = RunLog.open(opModeName);
+
+    telemetry = new RecordingTelemetry( //apparently needs to reinit each time opmode inits
+            runLog,
             dsTelemetry, // Driver Station telemetry
             FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
     );
 
     follower = Constants.create(hardwareMap);
+    if(follower == null) {
+      RobotLog.ii("RunLog", "no follower; only telemetry is logged");
+    }
 
     hubs = hardwareMap.getAll(LynxModule.class);
     for (LynxModule hub : hubs) {
@@ -66,7 +79,7 @@ public class RobotBase{
   public static void initLoop(Gamepad gamepad){
     if(gamepad.left_bumper && gamepad.right_bumper){
       initialized = false;
-      init(hardwareMap, dsTelemetry);
+      init(hardwareMap, dsTelemetry, opModeName);
     }
 
     boolean bluePressed = gamepad.xWasPressed();
@@ -102,6 +115,14 @@ public class RobotBase{
     if (follower != null) {
       follower.update();
       pose = follower.pose();
+      runLog.sample(follower);
+    }
+  }
+
+  public static void closeRunLog(){
+    if(runLog != null) {
+      runLog.close();
+      runLog = null;
     }
   }
 

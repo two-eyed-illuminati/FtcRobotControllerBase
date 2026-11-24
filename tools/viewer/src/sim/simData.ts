@@ -42,6 +42,13 @@ export interface SimData {
   segments: { group: number; index: number; length: number }[];
   events: SimEvent[];
   samples: Record<SampleColumn, number[]>;
+  /** Telemetry from a robot log: per key, when its value changed. Times share the samples' clock and may be negative. */
+  telemetry?: Record<string, TelemetryTrack>;
+}
+
+export interface TelemetryTrack {
+  t: number[];
+  v: string[];
 }
 
 export interface SimSample {
@@ -143,4 +150,20 @@ export function sampleAt(sim: SimData, seconds: number): SimSample {
     group: samples.group[index],
     holding: samples.holding[index] === 1,
   };
+}
+
+/** The last logged value of each telemetry key at or before `seconds`. */
+export function telemetryAt(sim: SimData, seconds: number) {
+  const values: Record<string, string> = {};
+  for (const [key, track] of Object.entries(sim.telemetry ?? {})) {
+    let low = 0;
+    let high = track.t.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (track.t[middle] <= seconds) low = middle + 1;
+      else high = middle;
+    }
+    if (low > 0) values[key] = track.v[low - 1];
+  }
+  return values;
 }

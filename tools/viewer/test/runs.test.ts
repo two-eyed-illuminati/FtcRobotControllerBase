@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE_COLUMNS } from "../src/sim/simData";
+import { SAMPLE_COLUMNS, parseSim } from "../src/sim/simData";
 import { PathFeed, Playback } from "../src/state/viewer.svelte";
 
 function runText(duration: number) {
@@ -34,6 +34,28 @@ describe("loaded runs", () => {
     expect(feed.runs.map((run) => run.id)).toEqual([1, 2]);
     expect(feed.runs[0].color).not.toBe(feed.runs[1].color);
     expect(feed.runError).toBeNull();
+  });
+
+  it("finds the run that was pulled from a robot log", () => {
+    const feed = new PathFeed();
+    feed.addRun("a.json", runText(1));
+    feed.addRun("Auto-1.run.jsonl", runText(2), "Auto-1.run.jsonl");
+    expect(feed.runForLog("Auto-1.run.jsonl")?.label).toBe("Auto-1.run.jsonl");
+    expect(feed.runForLog("a.json")).toBeUndefined();
+  });
+
+  it("plays only the runs while the exported auto is hidden", () => {
+    const feed = new PathFeed();
+    const playback = new Playback(feed);
+    const parsed = parseSim(runText(5));
+    if (!parsed.ok) throw new Error(parsed.error);
+    feed.sim = parsed.sim;
+    feed.addRun("a.json", runText(2));
+    expect(playback.duration).toBe(5);
+    feed.hideAuto();
+    expect(feed.shownSim).toBeNull();
+    expect(playback.duration).toBe(2);
+    expect(playback.sample).toBeNull();
   });
 
   it("rejects a bad file and keeps the existing runs", () => {

@@ -4,11 +4,12 @@
   import IconButton from "../lib/components/ui/IconButton.svelte";
   import { fieldClass } from "../lib/components/ui/styles";
   import SpeedGraph from "./SpeedGraph.svelte";
+  import { TRACE_DT } from "../sim/trace";
 
   const feed = useFeed();
   const playback = usePlayback();
 
-  let sim = $derived(feed.sim);
+  let sim = $derived(feed.shownSim);
   let sample = $derived(playback.sample);
   let others = $derived(feed.runs.filter((run) => run.visible));
 
@@ -27,7 +28,7 @@
   );
 </script>
 
-{#if sim && sample}
+{#if sim || others.length > 0}
   <div class="flex flex-col gap-1.5 px-1" aria-label="Simulation playback">
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-0.5">
@@ -59,7 +60,7 @@
         type="range"
         min="0"
         max={playback.duration}
-        step={sim.dt}
+        step={sim?.dt ?? TRACE_DT}
         value={playback.time}
         aria-label="Playback position"
         class="min-w-0 flex-1 cursor-pointer"
@@ -80,21 +81,23 @@
       onseek={(seconds) => playback.seek(seconds)}
     />
 
-    <div
-      class="flex flex-wrap gap-x-4 font-mono text-xs text-body tabular-nums"
-    >
-      <span
-        >speed <b class="text-heading">{sample.speed.toFixed(1)}</b> in/s</span
+    {#if sim && sample}
+      <div
+        class="flex flex-wrap gap-x-4 font-mono text-xs text-body tabular-nums"
       >
-      <span
-        >target <b class="text-heading">{sample.targetVelocity.toFixed(1)}</b> in/s</span
-      >
-      <span
-        >segment <b class="text-heading">{sample.segment + 1}</b> of {sim
-          .segments.length}</span
-      >
-      <span>t <b class="text-heading">{sample.closestT.toFixed(2)}</b></span>
-      <span class="text-heading">{phase}</span>
-    </div>
+        <span
+          >speed <b class="text-heading">{sample.speed.toFixed(1)}</b> in/s</span
+        >
+        <span
+          >target <b class="text-heading">{sample.targetVelocity.toFixed(1)}</b> in/s</span
+        >
+        <span
+          >segment <b class="text-heading">{sample.segment + 1}</b> of {sim
+            .segments.length}</span
+        >
+        <span>t <b class="text-heading">{sample.closestT.toFixed(2)}</b></span>
+        <span class="text-heading">{phase}</span>
+      </div>
+    {/if}
   </div>
 {/if}

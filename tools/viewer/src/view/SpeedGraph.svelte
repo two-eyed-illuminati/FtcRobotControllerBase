@@ -2,7 +2,7 @@
   import type { SimData } from "../sim/simData";
 
   interface Props {
-    sim: SimData;
+    sim: SimData | null;
     others: { sim: SimData; color: string }[];
     duration: number;
     time: number;
@@ -23,9 +23,11 @@
   let top = $derived(
     Math.max(
       1,
-      ...sim.samples.speed,
+      ...(sim?.samples.speed ?? []),
       ...others.flatMap((other) => other.sim.samples.speed),
-      ...sim.samples.targetVelocity.map((value) => Math.min(value, 1e6)),
+      ...(sim?.samples.targetVelocity ?? []).map((value) =>
+        Math.min(value, 1e6),
+      ),
     ) * 1.1,
   );
   const xOf = (seconds: number) => (seconds / duration) * WIDTH;
@@ -38,8 +40,8 @@
       )
       .join(" ");
 
-  let speedLine = $derived(line(sim, sim.samples.speed));
-  let targetLine = $derived(line(sim, sim.samples.targetVelocity));
+  let speedLine = $derived(sim ? line(sim, sim.samples.speed) : "");
+  let targetLine = $derived(sim ? line(sim, sim.samples.targetVelocity) : "");
   let otherLines = $derived(
     others.map((other) => ({
       color: other.color,
@@ -47,7 +49,8 @@
     })),
   );
   let markers = $derived(
-    sim.events.filter((event) => event.type !== "pathStart" || event.t > 0),
+    sim?.events.filter((event) => event.type !== "pathStart" || event.t > 0) ??
+      [],
   );
 
   let dragging = false;
@@ -152,6 +155,6 @@
   <span
     class="pointer-events-none absolute right-1 bottom-0.5 text-[10px] text-body"
   >
-    {top.toFixed(0)} in/s max · dashed = target
+    {top.toFixed(0)} in/s max{sim ? " · dashed = target" : ""}
   </span>
 </div>

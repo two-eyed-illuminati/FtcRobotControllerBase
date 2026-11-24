@@ -13,6 +13,7 @@
   import PathStrokes from "./scene/PathStrokes.svelte";
   import PathMarkers from "./scene/PathMarkers.svelte";
   import HeadingArrows from "./scene/HeadingArrows.svelte";
+  import TelemetryPanel from "./TelemetryPanel.svelte";
   import PlaybackBar from "./PlaybackBar.svelte";
   import { polylinePath } from "./scene/svgPath";
   import { FIELD_POINT_COLOR, GHOST_COLOR } from "./scene/colors";
@@ -42,7 +43,7 @@
   let viewport = $derived(createViewport(pixels));
   let { x, y } = $derived(viewport);
 
-  let doc = $derived(feed.doc);
+  let doc = $derived(feed.shownDoc);
   let robot = $derived(doc?.robot ?? robotConfigOf(DEFAULT_SETTINGS));
   let allSegments = $derived(
     doc ? flattenToAtomicSegments(doc.startPoint, doc.lines) : [],
@@ -71,10 +72,10 @@
 
   let sample = $derived(playback.sample);
   let trace = $derived(
-    feed.sim && options.showTrace
-      ? feed.sim.samples.x.map((px, i) => ({
+    feed.shownSim && options.showTrace
+      ? feed.shownSim.samples.x.map((px, i) => ({
           x: px,
-          y: feed.sim!.samples.y[i],
+          y: feed.shownSim!.samples.y[i],
         }))
       : [],
   );
@@ -143,7 +144,12 @@
   }
 </script>
 
-<main class={[surfaceClass, "flex min-h-0 flex-col gap-2 p-2"]}>
+<main
+  class={[
+    surfaceClass,
+    "grid min-h-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)_auto] gap-2 p-2",
+  ]}
+>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class={[
@@ -172,26 +178,28 @@
         onSettled={() => (loadedFieldMap = fieldMapSrc)}
       />
 
-      {#if doc}
-        <svg
-          class="pointer-events-none absolute inset-0 z-15"
-          viewBox={`0 0 ${FIELD_SIZE} ${FIELD_SIZE}`}
-          width={pixels}
-          height={pixels}
-          aria-hidden="true"
-        >
-          <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
-            {#each doc.fieldPoints as point, i (i)}
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={(Math.max(0.6, point.radius ?? 2.2) * FIELD_SIZE) / pixels}
-                fill={point.color || FIELD_POINT_COLOR}
-                opacity={Math.max(0, Math.min(1, point.opacity ?? 1))}
-              />
-            {/each}
-          </g>
-        </svg>
+      {#if feed.doc}
+        {#if doc}
+          <svg
+            class="pointer-events-none absolute inset-0 z-15"
+            viewBox={`0 0 ${FIELD_SIZE} ${FIELD_SIZE}`}
+            width={pixels}
+            height={pixels}
+            aria-hidden="true"
+          >
+            <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
+              {#each doc.fieldPoints as point, i (i)}
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={(Math.max(0.6, point.radius ?? 2.2) * FIELD_SIZE) / pixels}
+                  fill={point.color || FIELD_POINT_COLOR}
+                  opacity={Math.max(0, Math.min(1, point.opacity ?? 1))}
+                />
+              {/each}
+            </g>
+          </svg>
+        {/if}
 
         {#if sample}
           <RobotSprite
@@ -202,7 +210,7 @@
             src={robotImageSrc}
             onImageSettled={() => (loadedRobotImage = robotImageSrc)}
           />
-        {:else if options.showRobotAtStart}
+        {:else if options.showRobotAtStart && doc}
           <RobotSprite
             xy={{ x: x(doc.startPoint.x), y: y(doc.startPoint.y) }}
             heading={-doc.startPoint.headingDeg}
@@ -282,11 +290,13 @@
             {#if options.showHeadings}
               <HeadingArrows all={allSegments} shown={shownSegments} />
             {/if}
-            <PathMarkers
-              startPoint={doc.startPoint}
-              segments={shownSegments}
-              showControlPoints={options.showControlPoints}
-            />
+            {#if doc}
+              <PathMarkers
+                startPoint={doc.startPoint}
+                segments={shownSegments}
+                showControlPoints={options.showControlPoints}
+              />
+            {/if}
           </g>
         </svg>
       {/if}
@@ -296,5 +306,6 @@
       {/if}
     </div>
   </div>
-  <PlaybackBar />
+  <TelemetryPanel />
+  <div class="col-span-2"><PlaybackBar /></div>
 </main>

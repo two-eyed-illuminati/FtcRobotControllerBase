@@ -10,6 +10,11 @@ import {
   type SimSample,
 } from "../sim/simData";
 import { parseRun } from "../sim/trace";
+import type {
+  TraceFetchMessage,
+  TraceInfo,
+  TraceListMessage,
+} from "../../server/traceFetchPlugin";
 
 export type AutoInfo = {
   name: string;
@@ -40,12 +45,20 @@ export class LoadedRun {
   label: string;
   color: string;
   sim: SimData;
+  /** The robot log this run was pulled from, or null when it came from a file. */
+  source: string | null;
   visible = $state(true);
 
-  constructor(id: number, label: string, sim: SimData) {
+  constructor(
+    id: number,
+    label: string,
+    sim: SimData,
+    source: string | null = null,
+  ) {
     this.id = id;
     this.label = label;
     this.sim = sim;
+    this.source = source;
     this.color = RUN_COLORS[(id - 1) % RUN_COLORS.length];
   }
 }
@@ -61,12 +74,22 @@ export class PathFeed {
   /** Compiler or runtime output from the last failed Java export. */
   exportError = $state<string | null>(null);
   sim = $state.raw<SimData | null>(null);
+  /** The viewer shows no exported auto, so loaded runs can be viewed alone. */
+  autoHidden = $state(false);
+  shownDoc = $derived(this.autoHidden ? null : this.doc);
+  shownSim = $derived(this.autoHidden ? null : this.sim);
   /** Why there is no simulation, when the export wrote none or it failed. */
   simError = $state<string | null>(null);
   runs = $state.raw<LoadedRun[]>([]);
   /** Why the last loaded file was not added as a run. */
   runError = $state<string | null>(null);
-  fetchingRun = $state(false);
+  /** Why the robot logs could not be listed or pulled. */
+  logsError = $state<string | null>(null);
+  /** The robot logs on the hub, newest first. */
+  robotLogs = $state.raw<TraceInfo[]>([]);
+  listingLogs = $state(false);
+  /** The name of the robot log being pulled. */
+  fetchingRun = $state<string | null>(null);
   autos = $state.raw<AutosMessage>({
     autos: [],
     selected: null,
@@ -129,8 +152,14 @@ export class PathFeed {
     );
   }
 
+  hideAuto() {
+    this.autoHidden = true;
+    console.info("[viewer] exported auto hidden");
+  }
+
   async selectAuto(name: string) {
     this.autoError = null;
+    this.autoHidden = false;
     try {
       const response = await fetch("/__autos/select", {
         method: "POST",
@@ -166,14 +195,18 @@ export class PathFeed {
     );
   }
 
-  addRun(label: string, text: string) {
+  runForLog(name: string) {
+    return this.runs.find((run) => run.source === name);
+  }
+
+  addRun(label: string, text: string, source: string | null = null) {
     const result = parseRun(text);
     if (!result.ok) {
       this.runError = `${label}: ${result.error}`;
       console.error(`[viewer] run ${label} rejected: ${result.error}`);
       return;
     }
-    const run = new LoadedRun(this.nextRunId++, label, result.sim);
+    const run = new LoadedRun(this.nextRunId++, label, result.sim, source);
     this.runs = [...this.runs, run];
     this.runError = null;
     console.info(
@@ -182,25 +215,45 @@ export class PathFeed {
     );
   }
 
-  async fetchLatestRun() {
-    this.fetchingRun = true;
+  async listRobotLogs() {
+    this.listingLogs = true;
     try {
-      const response = await fetch("/__trace/latest");
-      const message = await response.json();
+      const response = await fetch("/__trace/list");
+      const message: TraceListMessage = await response.json();
       if (!message.ok) {
-        this.runError = message.error;
-        console.error(`[viewer] fetch latest run failed: ${message.error}`);
+        this.logsError = message.error;
+        console.error(`[viewer] listing robot logs failed: ${message.error}`);
         return;
       }
-      const pulledAt = new Intl.DateTimeFormat(undefined, {
-        timeStyle: "medium",
-      }).format(message.pulledAt);
-      this.addRun(`latest ${pulledAt}`, message.text);
+      this.robotLogs = message.traces;
+      this.logsError = null;
+      console.info(`[viewer] ${message.traces.length} robot logs on the hub`);
     } catch (error) {
-      this.runError = `Could not reach the viewer server: ${(error as Error).message}`;
-      console.error(`[viewer] ${this.runError}`);
+      this.logsError = `Could not reach the viewer server: ${(error as Error).message}`;
+      console.error(`[viewer] ${this.logsError}`);
     } finally {
-      this.fetchingRun = false;
+      this.listingLogs = false;
+    }
+  }
+
+  async fetchRun(name: string) {
+    this.fetchingRun = name;
+    try {
+      const response = await fetch(
+        `/__trace/file?name=${encodeURIComponent(name)}`,
+      );
+      const message: TraceFetchMessage = await response.json();
+      if (!message.ok) {
+        this.logsError = message.error;
+        console.error(`[viewer] fetch run ${name} failed: ${message.error}`);
+        return;
+      }
+      this.addRun(name, message.text, name);
+    } catch (error) {
+      this.logsError = `Could not reach the viewer server: ${(error as Error).message}`;
+      console.error(`[viewer] ${this.logsError}`);
+    } finally {
+      this.fetchingRun = null;
     }
   }
 
@@ -250,13 +303,15 @@ export class Playback {
   constructor(feed: PathFeed) {
     this.duration = $derived(
       Math.max(
-        feed.sim?.duration ?? 0,
+        feed.shownSim?.duration ?? 0,
         ...feed.runs
           .filter((run) => run.visible)
           .map((run) => run.sim.duration),
       ),
     );
-    this.sample = $derived(feed.sim ? sampleAt(feed.sim, this.time) : null);
+    this.sample = $derived(
+      feed.shownSim ? sampleAt(feed.shownSim, this.time) : null,
+    );
   }
 
   seek(seconds: number) {

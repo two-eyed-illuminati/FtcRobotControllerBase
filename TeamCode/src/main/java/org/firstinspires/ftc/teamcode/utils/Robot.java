@@ -17,9 +17,9 @@ public class Robot extends RobotBase{
   //Mechanisms
   //ex: public static DcMotorEx shooter;
 
-  public static void init(HardwareMap hardwareMap, Telemetry dsTelemetry){
+  public static void init(HardwareMap hardwareMap, Telemetry dsTelemetry, String opModeName){
     register(new Robot());
-    RobotBase.init(hardwareMap, dsTelemetry);
+    RobotBase.init(hardwareMap, dsTelemetry, opModeName);
   }
 
   @Override

@@ -1,4 +1,4 @@
-import { parseSim, wrapAngle, type SimParse } from "./simData";
+import { parseSim, wrapAngle, type SimData, type SimParse } from "./simData";
 
 /** The resampling step, equal to the simulation's control tick. */
 export const TRACE_DT = 0.01;
@@ -25,6 +25,14 @@ type TraceColumn = (typeof TRACE_COLUMNS)[number];
  * tick to tick, so the samples are resampled to a fixed step. Time 0 is the first FOLLOW sample.
  */
 export function parseTrace(raw: Record<string, unknown>): SimParse {
+  const result = resampleTrace(raw);
+  return result.ok ? { ok: true, sim: result.sim } : result;
+}
+
+type Resampled =
+  { ok: true; sim: SimData; t0: number } | { ok: false; error: string };
+
+function resampleTrace(raw: Record<string, unknown>): Resampled {
   const samples = raw.samples as Record<string, unknown> | undefined;
   if (!samples) return { ok: false, error: "The trace has no samples." };
   const columns = {} as Record<TraceColumn, number[]>;
@@ -128,6 +136,7 @@ export function parseTrace(raw: Record<string, unknown>): SimParse {
   const meanLoop = duration / (rows - 1);
   return {
     ok: true,
+    t0,
     sim: {
       dt: TRACE_DT,
       duration: (count - 1) * TRACE_DT,
@@ -152,8 +161,92 @@ export function parseTrace(raw: Record<string, unknown>): SimParse {
   };
 }
 
-/** A `.sim.json` from the simulator or a `.trace.json` from the robot. */
+/**
+ * Reads a streamed robot log (see RunLog.java): a header line, one array per loop and one
+ * object per telemetry change. A cut-off last line, as after a crash, is skipped with a warning.
+ */
+export function parseRunLog(text: string): SimParse {
+  const lines = text.split("\n");
+  while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+  if (lines.length === 0) return { ok: false, error: "The log is empty." };
+
+  let header: Record<string, unknown>;
+  try {
+    header = JSON.parse(lines[0]);
+  } catch {
+    return { ok: false, error: "The log header on line 1 is not valid JSON." };
+  }
+  const names = header.columns;
+  if (
+    !Array.isArray(names) ||
+    TRACE_COLUMNS.some((name) => !names.includes(name))
+  ) {
+    return { ok: false, error: "The log header is missing sample columns." };
+  }
+
+  const warnings: string[] = [];
+  const rows: unknown[][] = [];
+  const telemetry: { t: number; tel: Record<string, unknown> }[] = [];
+  const endsWithNewline = text.endsWith("\n");
+  for (let i = 1; i < lines.length; i++) {
+    let line: unknown;
+    try {
+      line = JSON.parse(lines[i]);
+    } catch {
+      if (i === lines.length - 1 && !endsWithNewline) {
+        warnings.push("The log ends mid-line; the last 0.5 s may be missing.");
+        break;
+      }
+      return {
+        ok: false,
+        error: `Line ${i + 1} of the log is not valid JSON.`,
+      };
+    }
+    if (Array.isArray(line)) rows.push(line);
+    else if (line && typeof line === "object" && "tel" in line) {
+      telemetry.push(line as { t: number; tel: Record<string, unknown> });
+    } else {
+      return {
+        ok: false,
+        error: `Line ${i + 1} of the log is not a row or telemetry.`,
+      };
+    }
+  }
+
+  const raw = {
+    kind: "trace",
+    name: header.name,
+    modes: header.modes,
+    samples: Object.fromEntries(
+      TRACE_COLUMNS.map((name) => {
+        const column = names.indexOf(name);
+        return [name, rows.map((row) => row[column])];
+      }),
+    ),
+  };
+  const result = resampleTrace(raw);
+  if (!result.ok) return result;
+
+  const tracks: Record<string, { t: number[]; v: string[] }> = {};
+  for (const { t, tel } of telemetry) {
+    for (const [key, value] of Object.entries(tel)) {
+      const track = (tracks[key] ??= { t: [], v: [] });
+      track.t.push(Number(t) - result.t0);
+      track.v.push(String(value));
+    }
+  }
+
+  const { sim } = result;
+  sim.warnings.push(...warnings);
+  sim.telemetry = tracks;
+  sim.assumptions.source = "robot log";
+  sim.assumptions.telemetryLines = telemetry.length;
+  return { ok: true, sim };
+}
+
+/** A `.sim.json` from the simulator, a `.trace.json` or a `.run.jsonl` from the robot. */
 export function parseRun(text: string): SimParse {
+  if (text.startsWith('{"kind":"run"')) return parseRunLog(text);
   let raw: Record<string, unknown>;
   try {
     raw = JSON.parse(text);

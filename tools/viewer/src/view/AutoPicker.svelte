@@ -13,6 +13,11 @@
     void feed.selectAuto(name);
   }
 
+  function chooseNone() {
+    open = false;
+    feed.hideAuto();
+  }
+
   function badge(auto: (typeof autos.autos)[number]) {
     if (autos.exporting === auto.name) return "exporting…";
     if (auto.failed) return "failed";
@@ -32,28 +37,44 @@
       type="button"
       aria-haspopup="listbox"
       aria-expanded={open}
-      class="flex items-center gap-2 rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-heading transition hover:border-primary"
+      class="flex w-full items-center gap-2 rounded-lg border border-border bg-base px-2.5 py-1.5 text-sm text-heading transition hover:border-primary"
       onclick={() => (open = !open)}
     >
       {#if autos.exporting}
         <LoaderCircle class="size-4 animate-spin text-primary" />
       {/if}
-      <span class="font-mono">{autos.selected ?? "Choose an auto"}</span>
-      <ChevronDown class="size-4 text-body" />
+      <span class="min-w-0 flex-1 truncate text-left font-mono"
+        >{feed.autoHidden ? "None" : (autos.selected ?? "Choose an auto")}</span
+      >
+      <ChevronDown class="size-4 shrink-0 text-body" />
     </button>
 
     {#if open}
       <ul
         role="listbox"
-        class="absolute left-0 z-10 mt-1 min-w-64 p-1 {surfaceClass}"
+        class="absolute inset-x-0 z-10 mt-1 p-1 {surfaceClass}"
       >
+        <li role="option" aria-selected={feed.autoHidden}>
+          <button
+            type="button"
+            class="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-base {feed.autoHidden
+              ? 'text-primary'
+              : 'text-heading'}"
+            onclick={chooseNone}
+          >
+            None
+          </button>
+        </li>
         {#each autos.autos as auto (auto.name)}
           {@const status = badge(auto)}
-          <li role="option" aria-selected={auto.name === autos.selected}>
+          <li
+            role="option"
+            aria-selected={!feed.autoHidden && auto.name === autos.selected}
+          >
             <button
               type="button"
-              class="flex w-full items-center justify-between gap-4 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-base {auto.name ===
-              autos.selected
+              class="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-base {!feed.autoHidden &&
+              auto.name === autos.selected
                 ? 'text-primary'
                 : 'text-heading'}"
               onclick={() => choose(auto.name)}
@@ -78,5 +99,5 @@
 {/if}
 
 {#if feed.autoError}
-  <span class="text-xs text-danger" role="alert">{feed.autoError}</span>
+  <p class="px-1 pt-1 text-xs text-danger" role="alert">{feed.autoError}</p>
 {/if}
