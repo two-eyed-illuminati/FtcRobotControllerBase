@@ -9,6 +9,10 @@ import com.pedropathing.math.Pose;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.skeletonarmy.marrow.zones.CircleZone;
+import com.skeletonarmy.marrow.zones.Point;
+import com.skeletonarmy.marrow.zones.PolygonZone;
+import com.skeletonarmy.marrow.zones.Zone;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
@@ -113,6 +117,25 @@ public class RobotBase{
 
   public static Pose toField(Pose bluePose){
     return game.fieldPose(bluePose);
+  }
+
+  public static Zone toField(Zone blueZone){
+    if(blueZone instanceof CircleZone){
+      return new CircleZone(toField(blueZone.getPosition()), ((CircleZone) blueZone).getRadius());
+    }
+    if(blueZone instanceof PolygonZone){
+      Point[] corners = ((PolygonZone) blueZone).getCorners();
+      for(int i = 0; i < corners.length; i++){
+        corners[i] = toField(corners[i]);
+      }
+      return new PolygonZone(corners);
+    }
+    throw new IllegalArgumentException("Cannot move a " + blueZone.getClass() + " to field coordinates");
+  }
+
+  private static Point toField(Point bluePoint){
+    Pose fieldPose = toField(new Pose(bluePoint.getX(), bluePoint.getY(), 0));
+    return new Point(fieldPose.x(), fieldPose.y());
   }
 
   //Runs inside init() after the follower and hubs exist. Create game-specific hardware here.

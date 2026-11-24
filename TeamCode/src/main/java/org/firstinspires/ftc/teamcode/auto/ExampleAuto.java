@@ -3,9 +3,13 @@ package org.firstinspires.ftc.teamcode.auto;
 import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
 
+import java.util.Arrays;
+
 import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.skeletonarmy.marrow.zones.Point;
+import com.skeletonarmy.marrow.zones.PolygonZone;
 
 import org.firstinspires.ftc.teamcode.auto.utils.AutoBuilder;
 import org.firstinspires.ftc.teamcode.auto.utils.AutoOpMode;
@@ -28,8 +32,6 @@ public final class ExampleAuto extends AutoOpMode {
                 .startAt(start)
                 .optimizedPath(gtcConfig.endPose)
                 .optimizedPath(new Pose(30, 110, Math.PI))
-                .optimizedPath(new Pose(50, 30, Math.PI))
-                .optimizedPath(new Pose(50, 15, Math.PI))
-                .optimizedPath(new Pose(120, 15, Math.PI));
+                .optimizedPath(new Pose(120, 15, Math.PI), Arrays.asList(new PolygonZone(new Point(70.75, 70.75), 40.0, 6.0)));
     }
 }

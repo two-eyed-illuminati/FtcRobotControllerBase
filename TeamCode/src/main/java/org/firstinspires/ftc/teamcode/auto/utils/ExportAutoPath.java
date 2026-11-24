@@ -27,7 +27,7 @@ public final class ExportAutoPath {
 
         String autoName = args.length > 1 ? args[1] : "ExampleAuto";
         System.out.println("Exporting " + AUTO_PACKAGE + "." + autoName + " with optimized paths");
-        OptimizedPaths.optimizer = OptimizeAutoPaths::optimize;
+        OptimizedPaths.optimizer = PathRefiner::refine;
         export(createRoutine(autoName), output);
     }
 

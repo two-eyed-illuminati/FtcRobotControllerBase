@@ -9,6 +9,7 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.ivy.Command;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
+import com.skeletonarmy.marrow.zones.Zone;
 
 import org.firstinspires.ftc.teamcode.utils.Robot;
 
@@ -44,9 +45,15 @@ public class AutoBuilder {
     return this;
   }
 
-  /** Drives to bluePose along a path optimized at build time; see OptimizedPaths. */
+  // Optimize the shortest-time path to the pose
   public AutoBuilder optimizedPath(Pose bluePose) {
     return followPath(OptimizedPaths.get(currentPose, Robot.toField(bluePose)));
+  }
+
+  public AutoBuilder optimizedPath(Pose bluePose, List<Zone> extraBlueObstacles) {
+    List<Zone> extraObstacles = new ArrayList<>();
+    for (Zone obstacle : extraBlueObstacles) extraObstacles.add(Robot.toField(obstacle));
+    return followPath(OptimizedPaths.get(currentPose, Robot.toField(bluePose), extraObstacles));
   }
 
   public AutoBuilder then(Command command) {

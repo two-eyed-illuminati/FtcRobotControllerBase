@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode.auto.utils;
 
 import com.pedropathing.follower.Follower;
-import com.pedropathing.math.Pose;
 
 import org.firstinspires.ftc.teamcode.utils.Robot;
 
@@ -20,7 +19,7 @@ public final class OptimizeAutoPaths {
     File output = new File(args[1]);
     System.out.printf("Optimizing auto paths in %s around %d obstacles%n",
       AUTO_PACKAGE, OptimizedPaths.obstacles.size());
-    OptimizedPaths.optimizer = OptimizeAutoPaths::optimize;
+    OptimizedPaths.optimizer = PathRefiner::refine;
 
     File autoDir = new File(classes, AUTO_PACKAGE.replace('.', '/'));
     for (File file : autoDir.listFiles((dir, name) -> name.endsWith(".class") && !name.contains("$"))) {
@@ -38,9 +37,5 @@ public final class OptimizeAutoPaths {
       }
     }
     OptimizedPaths.save(output);
-  }
-
-  static RefinedPath optimize(Pose start, Pose end) {
-    return PathRefiner.refine(start, end, OptimizedPaths.obstacles);
   }
 }

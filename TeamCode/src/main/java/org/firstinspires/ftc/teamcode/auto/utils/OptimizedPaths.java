@@ -16,11 +16,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.function.BiFunction;
 
 /**
  * Paths optimized on the computer (PathRefiner) by the optimizeAutoPaths Gradle task.
@@ -54,18 +55,32 @@ public final class OptimizedPaths {
     Weaver.setConfig(new PathConfig().intakeWidth(8.0));
   }
 
+  interface Optimizer {
+    RefinedPath optimize(Pose start, Pose end, List<Zone> obstacles);
+  }
+
   /** Set only on the computer (OptimizeAutoPaths, ExportAutoPath): optimizes a missing path. */
-  static BiFunction<Pose, Pose, RefinedPath> optimizer;
+  static Optimizer optimizer;
 
   private static Properties stored;
 
   private OptimizedPaths() {}
 
   public static Path get(Pose start, Pose end) {
-    String key = key(start, end);
+    return get(start, end, Collections.emptyList());
+  }
+
+  /** Also avoids {@code extraObstacles}, in field coordinates; they are part of the stored path's key. */
+  public static Path get(Pose start, Pose end, List<Zone> extraObstacles) {
+    List<Zone> allObstacles = new ArrayList<>(obstacles);
+    allObstacles.addAll(extraObstacles);
+    String key = key(start, end, extraObstacles);
     String encoded = stored().getProperty(key);
     if (encoded == null && optimizer != null) {
-      encoded = optimizer.apply(start, end).encode();
+      if (!extraObstacles.isEmpty()) {
+        System.out.println("  with " + extraObstacles.size() + " extra obstacles:");
+      }
+      encoded = optimizer.optimize(start, end, allObstacles).encode();
       stored.setProperty(key, encoded);
     } else if (encoded == null) {
       System.out.println("OptimizedPaths: miss for " + key + " among " + stored.size()
@@ -74,7 +89,7 @@ public final class OptimizedPaths {
     } else {
       System.out.println("OptimizedPaths: hit for " + key + ": " + encoded.split(" ")[0]);
     }
-    return RefinedPath.decode(encoded).toPath(start, end, obstacles);
+    return RefinedPath.decode(encoded).toPath(start, end, allObstacles);
   }
 
   static void save(File file) throws IOException {
@@ -91,9 +106,27 @@ public final class OptimizedPaths {
     System.out.println("OptimizedPaths: wrote " + stored.size() + " paths (build " + build + ") to " + file);
   }
 
-  private static String key(Pose start, Pose end) {
-    return String.format(Locale.ROOT, "%.2f,%.2f,%.4f>%.2f,%.2f,%.4f",
-      start.x(), start.y(), start.heading(), end.x(), end.y(), end.heading());
+  private static String key(Pose start, Pose end, List<Zone> extraObstacles) {
+    StringBuilder key = new StringBuilder(String.format(Locale.ROOT, "%.2f,%.2f,%.4f>%.2f,%.2f,%.4f",
+      start.x(), start.y(), start.heading(), end.x(), end.y(), end.heading()));
+    for (Zone obstacle : extraObstacles) key.append('|').append(shape(obstacle));
+    return key.toString();
+  }
+
+  private static String shape(Zone zone) {
+    if (zone instanceof CircleZone) {
+      return point(zone.getPosition()) + String.format(Locale.ROOT, "r%.2f", ((CircleZone) zone).getRadius());
+    }
+    if (zone instanceof PolygonZone) {
+      StringBuilder corners = new StringBuilder();
+      for (Point corner : ((PolygonZone) zone).getCorners()) corners.append(point(corner)).append(';');
+      return corners.toString();
+    }
+    throw new IllegalArgumentException("Extra obstacles must be CircleZone or PolygonZone, not " + zone.getClass());
+  }
+
+  private static String point(Point point) {
+    return String.format(Locale.ROOT, "%.2f,%.2f", point.getX(), point.getY());
   }
 
   /** Uses whichever copy (APK resource or Sloth file) was optimized last; each holds the full table. */
