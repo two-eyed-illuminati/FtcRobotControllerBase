@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import org.firstinspires.ftc.teamcode.utils.Clamp;
 import org.firstinspires.ftc.teamcode.utils.Controller;
 
+//For a Continuous Motor Mechanism, set/getPos = set/getVel
 public class ContinuousMotorMechanism extends Mechanism {
     public final DcMotorEx motor;
     public final double posPerEncoderTick;
