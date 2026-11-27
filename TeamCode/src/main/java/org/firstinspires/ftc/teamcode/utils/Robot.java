@@ -1,124 +1,37 @@
 package org.firstinspires.ftc.teamcode.utils;
 
-import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
-import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
-import com.pedropathing.follower.Follower;
-import com.pedropathing.ivy.Scheduler;
-import com.qualcomm.hardware.lynx.LynxModule;
-import com.qualcomm.robotcore.hardware.Gamepad;
+import com.pedropathing.math.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import com.pedropathing.math.Pose;
-import com.pedropathing.api.PoseFactory;
-
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
-
-import java.util.ArrayList;
-import java.util.List;
 
 //Allow configuration variables to be tuned without pushing code
 //with FTC Dashboard (https://acmerobotics.github.io/ftc-dashboard/features#configuration-variables)
 @Config
-public class Robot{
+public class Robot extends RobotBase{
   //Constants
   public static double DRIVER_FORWARD_HEADING = Math.PI;
   public static Pose DEFAULT_START_POSE = new Pose(110, 132, 3 * Math.PI / 2);
-
-  //Mechanisms, IMU, etc.
-  public static Follower follower;
-  public static MultipleTelemetry telemetry;
-  private static List<LynxModule> hubs = new ArrayList<>();
-  private static HardwareMap hardwareMap;
-  private static Telemetry dsTelemetry;
-
-  //Stored Values
-  public enum Alliance{
-    BLUE, RED
-  }
-  public static Alliance alliance = Alliance.BLUE; //0 = blue, 1 = red
-  public static Pose pose = new Pose(0, 0, 0);
-  public static boolean initialized = false;
-
-  public static Pose toField(Pose bluePose){
-    PoseFactory factory = PoseFactory.radians();
-    if(alliance == Alliance.RED){
-      factory = factory.rotateAround(70.75, 70.75, Math.PI);
-    }
-    return factory.of(bluePose.x(), bluePose.y(), bluePose.heading());
-  }
+  
+  //Mechanisms
+  //ex: public static DcMotorEx shooter;
 
   public static void init(HardwareMap hardwareMap, Telemetry dsTelemetry){
-    Robot.hardwareMap = hardwareMap;
-    Robot.dsTelemetry = dsTelemetry;
-    Scheduler.reset();
-
-    telemetry = new MultipleTelemetry( //apparently needs to reinit each time opmode inits
-            dsTelemetry, // Driver Station telemetry
-            FtcDashboard.getInstance().getTelemetry() // Dashboard telemetry
-    );
-
-    follower = Constants.create(hardwareMap);
-
-    hubs = hardwareMap.getAll(LynxModule.class);
-    for (LynxModule hub : hubs) {
-      hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
-    }
-
-    if(initialized) {
-      //Do things like setting motor zero power behavior, direction, etc.
-      if(follower != null) {
-        follower.setPose(pose);
-      }
-    }
+    register(new Robot());
+    RobotBase.init(hardwareMap, dsTelemetry);
   }
 
-  public static void initLoop(Gamepad gamepad){
-    if(gamepad.left_bumper && gamepad.right_bumper){
-      initialized = false;
-      init(hardwareMap, dsTelemetry);
+  @Override
+  protected void onInit(HardwareMap hardwareMap){
+    if (!initialized){
+      //ex: shooter = hardwareMap.get(DcMotorEx.class, "shooter");
     }
-
-    boolean bluePressed = gamepad.xWasPressed();
-    boolean redPressed = gamepad.bWasPressed();
-
-    if(initialized){
-      telemetry.addLine("Robot using previous initialization state");
-      telemetry.addData("Pose", pose);
-      telemetry.addLine("Press LB+RB to re-initialize");
-    }
-    else{
-      telemetry.addLine("Robot successfully initialized");
-      telemetry.addLine("Press X for BLUE alliance, B for RED alliance");
-      if(bluePressed){
-        alliance = Alliance.BLUE;
-      }
-      else if(redPressed){
-        alliance = Alliance.RED;
-      }
-      Pose startPose = toField(DEFAULT_START_POSE);
-      if(follower != null){
-        follower.setPose(startPose);
-      }
-    }
-
-    telemetry.addData("Current Alliance", alliance);
-    telemetry.update();
+    //ex: shooter.setDirection(DcMotorSimple.Direction.REVERSE);
   }
 
-  public static void loop(){
-    initialized = true;
-    clearBulkCache();
-    if (follower != null) {
-      follower.update();
-      pose = follower.pose();
-    }
-  }
-
-  public static void clearBulkCache(){
-    for (LynxModule hub : hubs) {
-      hub.clearBulkCache();
-    }
+  @Override
+  protected Pose startPose(){
+    return DEFAULT_START_POSE;
   }
 }
