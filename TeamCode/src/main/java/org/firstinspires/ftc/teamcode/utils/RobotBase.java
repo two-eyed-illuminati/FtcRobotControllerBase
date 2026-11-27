@@ -12,6 +12,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
 import org.firstinspires.ftc.teamcode.utils.log.RecordingTelemetry;
 import org.firstinspires.ftc.teamcode.utils.log.RunLog;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
@@ -29,6 +30,10 @@ public class RobotBase{
   private static Telemetry dsTelemetry;
   private static String opModeName;
   private static RunLog runLog;
+  private static final double VOLTAGE_REFRESH_SECONDS = 1.0;
+  private static long lastLoopNanos;
+  private static long lastVoltageNanos;
+  private static double batteryVolts;
   private static RobotBase game = new RobotBase();
 
   public enum Alliance{
@@ -63,6 +68,9 @@ public class RobotBase{
     }
 
     hubs = hardwareMap.getAll(LynxModule.class);
+    lastLoopNanos = 0;
+    lastVoltageNanos = 0;
+    RobotLog.ii("Robot", "hubs=%d, voltage refresh=%.1fs", hubs.size(), VOLTAGE_REFRESH_SECONDS);
     for (LynxModule hub : hubs) {
       hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
     }
@@ -117,6 +125,30 @@ public class RobotBase{
       pose = follower.pose();
       runLog.sample(follower);
     }
+    addLoopTelemetry();
+  }
+
+  private static void addLoopTelemetry(){
+    telemetry.addData("Pose", pose);
+    long now = System.nanoTime();
+    if(lastLoopNanos != 0){
+      telemetry.addData("Loop time (ms)", "%.1f", (now - lastLoopNanos) / 1e6);
+    }
+    lastLoopNanos = now;
+
+    if(lastVoltageNanos == 0 || (now - lastVoltageNanos) / 1e9 >= VOLTAGE_REFRESH_SECONDS){
+      batteryVolts = readBatteryVolts();
+      lastVoltageNanos = now;
+    }
+    telemetry.addData("Battery (V)", "%.2f", batteryVolts);
+  }
+
+  private static double readBatteryVolts(){
+    double lowest = Double.POSITIVE_INFINITY;
+    for (LynxModule hub : hubs) {
+      lowest = Math.min(lowest, hub.getInputVoltage(VoltageUnit.VOLTS));
+    }
+    return lowest;
   }
 
   public static void closeRunLog(){
