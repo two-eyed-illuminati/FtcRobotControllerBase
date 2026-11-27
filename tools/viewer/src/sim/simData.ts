@@ -152,18 +152,24 @@ export function sampleAt(sim: SimData, seconds: number): SimSample {
   };
 }
 
+/** The last value a telemetry track logged at or before `seconds`, if any. */
+export function trackValueAt(track: TelemetryTrack, seconds: number) {
+  let low = 0;
+  let high = track.t.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (track.t[middle] <= seconds) low = middle + 1;
+    else high = middle;
+  }
+  return low > 0 ? track.v[low - 1] : undefined;
+}
+
 /** The last logged value of each telemetry key at or before `seconds`. */
 export function telemetryAt(sim: SimData, seconds: number) {
   const values: Record<string, string> = {};
   for (const [key, track] of Object.entries(sim.telemetry ?? {})) {
-    let low = 0;
-    let high = track.t.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (track.t[middle] <= seconds) low = middle + 1;
-      else high = middle;
-    }
-    if (low > 0) values[key] = track.v[low - 1];
+    const value = trackValueAt(track, seconds);
+    if (value !== undefined) values[key] = value;
   }
   return values;
 }

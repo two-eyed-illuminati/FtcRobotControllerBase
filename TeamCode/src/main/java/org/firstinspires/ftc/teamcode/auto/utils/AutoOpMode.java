@@ -38,7 +38,7 @@ public abstract class AutoOpMode extends OpMode {
 
     @Override
     public final void loop() {
-        Robot.loop();
+        Robot.loop(gamepad1, gamepad2);
         Robot.telemetry.update();
         Scheduler.execute();
     }

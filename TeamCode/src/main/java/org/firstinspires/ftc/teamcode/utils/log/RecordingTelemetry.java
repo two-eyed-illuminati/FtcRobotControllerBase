@@ -12,6 +12,7 @@ import java.util.Map;
 /**
  * MultipleTelemetry that also writes every addData value to the RunLog on update(), only when the
  * value changed since the last update. Values added through addLine() or Item.setValue() are not recorded.
+ * record() writes a value to the RunLog only, without showing it on the Driver Station or Dashboard.
  */
 public final class RecordingTelemetry extends MultipleTelemetry {
   private final RunLog runLog;
@@ -45,6 +46,10 @@ public final class RecordingTelemetry extends MultipleTelemetry {
   public <T> Item addData(String caption, String format, Func<T> valueProducer) {
     pending.put(caption, (Func<String>) () -> String.format(format, valueProducer.value()));
     return super.addData(caption, format, valueProducer);
+  }
+
+  public void record(String caption, Object value) {
+    pending.put(caption, value);
   }
 
   @Override

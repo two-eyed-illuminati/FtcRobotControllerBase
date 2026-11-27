@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode.utils;
 
 import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.pedropathing.api.PoseFactory;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.ivy.Scheduler;
@@ -13,6 +12,7 @@ import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
+import org.firstinspires.ftc.teamcode.utils.log.GamepadLog;
 import org.firstinspires.ftc.teamcode.utils.log.RecordingTelemetry;
 import org.firstinspires.ftc.teamcode.utils.log.RunLog;
 import org.firstinspires.ftc.teamcode.utils.pedro.Constants;
@@ -24,7 +24,7 @@ import java.util.List;
 //A game subclass (Robot) registers itself and overrides the protected hooks below.
 public class RobotBase{
   public static Follower follower;
-  public static MultipleTelemetry telemetry;
+  public static RecordingTelemetry telemetry;
   private static List<LynxModule> hubs = new ArrayList<>();
   private static HardwareMap hardwareMap;
   private static Telemetry dsTelemetry;
@@ -117,7 +117,7 @@ public class RobotBase{
     telemetry.update();
   }
 
-  public static void loop(){
+  public static void loop(Gamepad gamepad1, Gamepad gamepad2){
     initialized = true;
     clearBulkCache();
     if (follower != null) {
@@ -126,6 +126,8 @@ public class RobotBase{
       runLog.sample(follower);
     }
     addLoopTelemetry();
+    GamepadLog.record(telemetry, "gamepad1", gamepad1);
+    GamepadLog.record(telemetry, "gamepad2", gamepad2);
   }
 
   private static void addLoopTelemetry(){

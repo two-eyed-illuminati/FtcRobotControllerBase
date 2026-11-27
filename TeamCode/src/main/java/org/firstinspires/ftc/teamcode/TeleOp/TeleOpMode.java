@@ -18,7 +18,7 @@ public abstract class TeleOpMode extends OpMode {
 
   @Override
   public final void loop() {
-    Robot.loop();
+    Robot.loop(gamepad1, gamepad2);
     onLoop();
     Robot.telemetry.update();
     Scheduler.execute();

@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { gamepadAt, gamepadsIn, isGamepadKey } from "../sim/gamepad";
   import { telemetryAt } from "../sim/simData";
   import { useFeed, usePlayback } from "../state/viewer.svelte";
   import PanelSection from "../lib/components/ui/PanelSection.svelte";
+  import GamepadView from "./GamepadView.svelte";
 
   const feed = useFeed();
   const playback = usePlayback();
@@ -100,7 +102,10 @@
 
     <div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
       {#each logs as run (run.id)}
-        {@const values = Object.entries(telemetryAt(run.sim, playback.time))}
+        {@const all = telemetryAt(run.sim, playback.time)}
+        {@const values = Object.entries(all).filter(
+          ([key]) => !isGamepadKey(key),
+        )}
         <PanelSection title={run.label} count={values.length}>
           <dl
             class="grid grid-cols-[minmax(0,auto)_1fr] gap-x-3 px-2 font-mono text-[11px] text-body tabular-nums"
@@ -110,6 +115,15 @@
               <dd class="truncate text-heading" title={value}>{value}</dd>
             {/each}
           </dl>
+          {#each gamepadsIn(all) as name (name)}
+            {@const pad = gamepadAt(all, name)}
+            <PanelSection
+              title={name.replace("gamepad", "Gamepad ")}
+              open={name === "gamepad1"}
+            >
+              <GamepadView {pad} />
+            </PanelSection>
+          {/each}
           {#if values.length === 0}
             <p class="px-2 text-xs text-body">
               Nothing was shown with addData before this time.
